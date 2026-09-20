@@ -64,6 +64,12 @@ If GPT already has a Linux partition, **skip step 1**. Tianma vs CSOT only
 matters on postmarketOS (`pmbootstrap init`). This Fedora `boot.img` /
 `kernel-pipa` contains both panels; you do **not** pass a panel cmdline.
 
+On the tablet (Termux, Magisk `su`):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/greed0802/pipa-fedora-builder-43/arena/01a0bd69-pipa-fedora-builder-43/scripts/termux-check.sh | su -c sh
+```
+
 1. Fastboot (Power + Volume Down).
 2. See names and which slot Android is on:
 
