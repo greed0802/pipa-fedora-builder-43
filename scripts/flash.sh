@@ -2,6 +2,7 @@
 # Flash Fedora images to a Xiaomi Pad 6 (pipa) from a host PC.
 #
 # Usage:
+#   ./scripts/flash.sh list
 #   ./scripts/flash.sh singleboot [--boot boot.img] [--root root.img]
 #   ./scripts/flash.sh dualboot   [--boot boot.img] [--root root.img] [--partition fedora] [--linux-slot auto]
 #
@@ -24,6 +25,7 @@ usage() {
 Flash Fedora for Xiaomi Pad 6 (pipa)
 
 Usage:
+  flash.sh list
   flash.sh singleboot [options]
   flash.sh dualboot   [options]
 
@@ -72,7 +74,7 @@ confirm() {
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        singleboot|dualboot) mode="$1"; shift ;;
+        singleboot|dualboot|list) mode="$1"; shift ;;
         --boot) boot_img="$2"; shift 2 ;;
         --root) root_img="$2"; shift 2 ;;
         --partition) partition="$2"; shift 2 ;;
@@ -111,8 +113,10 @@ resolve_linux_slot() {
     echo "Android is on slot ${current}; Fedora will use slot ${linux_slot}"
 }
 
-need_file "$boot_img"
-need_file "$root_img"
+if [[ "$mode" != "list" ]]; then
+    need_file "$boot_img"
+    need_file "$root_img"
+fi
 
 if [[ "$dry_run" -eq 0 ]]; then
     command -v fastboot >/dev/null || die "fastboot not found (install android-tools / platform-tools)"
@@ -129,6 +133,23 @@ if [[ "$dry_run" -eq 0 ]]; then
 fi
 
 case "$mode" in
+    list)
+        echo
+        echo "product:      ${product:-unknown}"
+        echo "current-slot: $(current_slot_from_fastboot)"
+        echo
+        echo "Partitions fastboot can see (name = type):"
+        fastboot getvar all 2>&1 | awk -F': ' '
+            $1 ~ /^partition-type:/ {
+                name=$1; sub(/^partition-type:/,"",name)
+                gsub(/\r/,"",$2); gsub(/\r/,"",name)
+                printf "  %-16s %s\n", name, $2
+            }' | sort
+        echo
+        echo "Pass the Linux rootfs name to --partition (fedora, linux, ubuntu, …)."
+        echo "Do not flash root.img to esp. Tianma/CSOT: this Fedora boot.img needs no extra cmdline."
+        exit 0
+        ;;
     singleboot)
         cat <<EOF
 This will REPLACE Android on this tablet (both boot slots + userdata).

@@ -47,6 +47,9 @@ partition named `fedora` before the flash commands below. The full walkthrough
 (backup, temporary boot on `super`, `pipa-repartition-dualboot`, restore stock
 `super`/`dtbo_a`, switch OS, unbrick) is in **[DUALBOOT.md](./DUALBOOT.md)**.
 
+If the tablet is **already repartitioned** (including Tianma panels — no extra
+flag), run `./scripts/flash.sh list` then dualboot with your partition name.
+
 Once that partition exists:
 
 ```bash

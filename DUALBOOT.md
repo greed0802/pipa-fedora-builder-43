@@ -58,6 +58,32 @@ Do not run a batch of commands you have not read.
 - **Android recovery:** hold **Power + Volume Up** (Android only; gone once
   that slot is Linux)
 
+## Already repartitioned? (Tianma / CSOT)
+
+If GPT already has a Linux partition, **skip step 1**. Tianma vs CSOT only
+matters on postmarketOS (`pmbootstrap init`). This Fedora `boot.img` /
+`kernel-pipa` contains both panels; you do **not** pass a panel cmdline.
+
+1. Fastboot (Power + Volume Down).
+2. See names and which slot Android is on:
+
+```bash
+./scripts/flash.sh list
+```
+
+3. Flash Fedora to the Linux partition (example names: `fedora`, `linux`,
+   `ubuntu`). Never flash `root.img` onto `esp`.
+
+```bash
+./scripts/flash.sh dualboot --boot boot.img --root root.img --partition fedora
+```
+
+`dtbo` on the Linux slot is erased for you. If the panel stays black, the
+usual cause is leftover `dtbo`, not Tianma — check `fastboot getvar
+partition-type:dtbo_a` / `dtbo_b` and erase the Linux slot's dtbo again.
+
+If `list` does not show a linux-sized partition, you still need step 1.
+
 ## 0. Backup (OrangeFox + `adb pull`)
 
 Copy off anything you care about from Android first.
