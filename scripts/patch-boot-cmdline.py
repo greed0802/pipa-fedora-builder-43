@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Append extra words to the kernel cmdline inside an Android boot.img.
 
-Does not load the Pad's linux partition. Safe to run on Windows against the
-same boot.img you already flashed to boot_b (~37 MiB).
+The pipa boot.img cmdline field is only ~74 bytes (already filled by
+root=UUID=... fbcon=rotate:1 splash quiet). Use the short SysV runlevel
+token "3" (systemd multi-user / text), not systemd.unit=multi-user.target.
 
-    python patch-boot-cmdline.py boot.img boot-text.img systemd.unit=multi-user.target
+    python patch-boot-cmdline.py boot.img boot-text.img 3
     fastboot flash boot_b boot-text.img
     fastboot erase dtbo_b
     fastboot set_active b
@@ -37,19 +38,26 @@ def patch(data: bytearray, extra: str) -> bytearray:
         sys.exit("error: cmdline is not NUL-terminated")
 
     old = bytes(data[start:end])
-    if extra_b in old:
-        print(f"already present: {old.decode('ascii', 'replace')}")
+    pad = end - start
+
+    if extra_b in old.split():
+        print("already present:", old.decode("ascii", "replace"))
         return data
 
-    # Keep splash/quiet or not: extra is appended.
-    pad = end - start  # usable bytes before NUL
-    new = old + b" " + extra_b
-    if len(new) > pad:
-        # Overwrite splash/quiet to free space
-        trimmed = old.replace(b" splash", b"").replace(b" quiet", b"")
-        new = trimmed + b" " + extra_b
-    if len(new) > pad:
-        sys.exit(f"error: cmdline too long ({len(new)} > {pad}): {new!r}")
+    stripped = b" ".join(old.replace(b" splash", b"").replace(b" quiet", b"").split())
+    candidates = [
+        stripped + b" " + extra_b,
+        b"root=PARTLABEL=linux fbcon=rotate:1 " + extra_b,
+        b"root=PARTLABEL=linux fbcon=rotate:1 3",
+    ]
+    new = None
+    for c in candidates:
+        c = b" ".join(c.split())
+        if len(c) <= pad:
+            new = c
+            break
+    if new is None:
+        sys.exit(f"error: cmdline too long (need <= {pad} bytes)")
 
     data[start:end] = new.ljust(pad, b"\0")
     print("old:", old.decode("ascii", "replace"))
@@ -64,8 +72,8 @@ def main() -> int:
     p.add_argument(
         "extra",
         nargs="?",
-        default="systemd.unit=multi-user.target",
-        help="appended to cmdline (default: systemd.unit=multi-user.target)",
+        default="3",
+        help="appended to cmdline (default: 3 = systemd multi-user / text)",
     )
     args = p.parse_args()
     data = bytearray(open(args.boot_in, "rb").read())
