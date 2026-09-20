@@ -1,0 +1,26 @@
+From: ArchPad project <archpad@localhost>
+Subject: media: i2c: hi846: allow sensor power-up to settle
+
+The HI846 on pipa intermittently fails its initial I2C ID read despite a
+correct reset pulse.  Vendor-era HI846 bring-up used a substantially longer
+settling interval than the upstream driver's 30-60 microseconds.  Wait 100 ms
+after reset release before accessing registers.  This is a probe-only delay
+and does not change the streaming sequence.
+
+---
+ drivers/media/i2c/hi846.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/media/i2c/hi846.c b/drivers/media/i2c/hi846.c
+index 3a7ef4d36f25..a3693b98f8f1 100644
+--- a/drivers/media/i2c/hi846.c
++++ b/drivers/media/i2c/hi846.c
+@@ -1825,7 +1825,7 @@ static int hi846_power_on(struct hi846 *hi846)
+ 	usleep_range(30, 60);
+ 	if (hi846->rst_gpio)
+ 		gpiod_set_value_cansleep(hi846->rst_gpio, 0);
+-	usleep_range(30, 60);
++	msleep(100);
+ 
+ 	return 0;
+ 

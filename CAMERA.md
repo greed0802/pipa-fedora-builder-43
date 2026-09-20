@@ -1,26 +1,25 @@
 # Cameras on pipa Fedora
 
 `cam --list` showing **No sensor found** with many `/dev/video*` nodes is expected
-on this kernel. Those nodes are the Qualcomm CAMSS ISP and Venus decoder, not
-the OV13B10 / HI846 chips.
+on stock `kernel-pipa`. Those nodes are CAMSS ISP + Iris, not OV13B10 / HI846.
 
-## Why this builder cannot “enable” the sensors
+## Assimilate ArchPad into kernel-pipa (not a kernel swap)
 
-`kernel-pipa` (from [pipadb/linux](https://github.com/pipadb/linux)
-`sm8250-xiaomi-pipa.dts`) has **no** `camss` / `cci` / `ov13b10` / `hi846`
-board nodes. Without that device tree, libcamera has nothing to open. Guessing
-GPIOs and regulators in an overlay can brown out the PMIC — we will not ship
-that.
+ArchPad claims working cameras. Their kernel is **not** drop-in on this Fedora
+image. Use [kernel-camera/](./kernel-camera/README.md) and:
 
-Userspace (Meet, Messenger, Firefox) can only use a camera after `cam --list`
-prints a real sensor. This image now preinstalls:
+```bash
+./scripts/patch-kernel-pipa-cameras.sh /path/to/pipadb/linux
+```
 
-- `libcamera`, `libcamera-ipa`, `libcamera-tools`, `libcamera-v4l2`
-- `pipewire-plugin-libcamera`, `v4l-utils`
+That patches **pipadb/linux** with ArchPad’s ov13b10/hi846 drivers and a camera
+DTSI. You must rebuild/install that as `kernel-pipa` (WSL). This mkosi tree
+cannot produce a new `boot.img` by itself.
 
-so the stack is ready when `kernel-pipa` grows camera DT.
+Userspace already ships libcamera + PipeWire plugin + IPA YAML
+(`mkosi.extra/usr/share/libcamera/ipa/simple/{ov13b10,hi846}.yaml`).
 
-## On a running tablet
+## On a running tablet (stock kernel)
 
 ```bash
 cam --list
@@ -28,14 +27,6 @@ v4l2-ctl --list-devices
 dmesg | grep -iE 'ov13|hi846|camss|cci'
 ```
 
-Empty `cam --list` → use a USB webcam, or wait for a kernel-pipa release that
-binds the sensors (ArchPad’s kernel claims this; it is a different tree).
+Empty `cam --list` → USB webcam, or the patched kernel above.
 
-Do not pick “Iris Decoder” or random `videoN` in Google Meet.
-
-## If a future kernel lists ov13b10
-
-```bash
-qcam
-# system Firefox, Meet → Settings → Video → ov13b10
-```
+Do not pick “Iris Decoder” in Meet.

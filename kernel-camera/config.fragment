@@ -1,0 +1,8 @@
+# Enable pipa cameras on kernel-pipa (merge with scripts/patch-kernel-pipa-cameras.sh)
+CONFIG_I2C_QCOM_CCI=m
+CONFIG_VIDEO_QCOM_CAMSS=m
+CONFIG_VIDEO_OV13B10=m
+CONFIG_VIDEO_HI846=m
+CONFIG_VIDEO_DW9714=m
+CONFIG_V4L2_CCI=m
+CONFIG_V4L2_CCI_I2C=m

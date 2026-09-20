@@ -1,0 +1,29 @@
+From: ArchPad project <archpad@localhost>
+Subject: media: i2c: hi846: assert reset while acquiring GPIO
+
+HI846 RESETB is active low.  Requesting the GPIO with GPIOD_OUT_LOW
+deasserts reset immediately, before the sensor supplies and input clock are
+enabled.  The later power-on sequence only writes the same deasserted state,
+so a warm probe does not produce a reset pulse and the sensor can stop
+acknowledging I2C transfers.
+
+Acquire the reset GPIO asserted.  hi846_power_on() already deasserts it after
+enabling the supplies and clock, while hi846_power_off() asserts it before
+turning them off.
+
+---
+ drivers/media/i2c/hi846.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/media/i2c/hi846.c b/drivers/media/i2c/hi846.c
+--- a/drivers/media/i2c/hi846.c
++++ b/drivers/media/i2c/hi846.c
+@@ -2058,7 +2058,7 @@ static int hi846_parse_dt(struct hi846 *hi846, struct device *dev)
+ 
+ 	v4l2_fwnode_endpoint_free(&bus_cfg);
+ 
+-	hi846->rst_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_LOW);
++	hi846->rst_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
+ 	if (IS_ERR(hi846->rst_gpio)) {
+ 		dev_err(dev, "failed to get reset gpio: %pe\n",
+ 			hi846->rst_gpio);
