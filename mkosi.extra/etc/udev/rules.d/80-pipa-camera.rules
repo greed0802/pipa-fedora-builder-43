@@ -1,0 +1,3 @@
+# CAMSS / libcamera nodes: video group already; tag so PipeWire can see them.
+SUBSYSTEM=="video4linux", KERNEL=="video*", GROUP="video", MODE="0660", TAG+="uaccess"
+SUBSYSTEM=="media", KERNEL=="media*", GROUP="video", MODE="0660", TAG+="uaccess"
