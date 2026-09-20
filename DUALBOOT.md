@@ -249,9 +249,23 @@ fastboot reboot
 
 On Windows, `fastboot flash linux root.img` without `-S` often dies with
 `std::bad_alloc` (the host tries to load the whole ~5 GiB image). `-S 256M`
-sends Android sparse chunks. Do **not** split `root.img` with `copy`/`split`
-— that corrupts ext4. Stay in PowerShell if `-S` works; WSL2 only helps if
-you attach the tablet with `usbipd` (USB is not visible to WSL by default).
+is **not enough** on many Windows platform-tools builds — they still map the
+raw file. Convert to Android sparse first (does not need the tablet):
+
+```powershell
+# in WSL (Ubuntu)
+sudo apt-get install -y android-sdk-libsparse-utils
+img2simg "/mnt/c/Users/<you>/path/root.img" "/mnt/c/Users/<you>/path/root.simg"
+```
+
+or `python scripts/img2simg.py root.img root.simg`, then:
+
+```powershell
+fastboot flash linux root.simg
+```
+
+Do **not** split `root.img` with Explorer/`copy`. WSL2 cannot see fastboot USB
+until you attach it with usbipd-win; conversion does not need USB.
 
 Wait through first boot; it can sit still for several seconds. Do not panic and
 hold Power.
