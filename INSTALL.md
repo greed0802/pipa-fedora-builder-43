@@ -62,11 +62,14 @@ Manual equivalent:
 
 ```bash
 fastboot flash boot_b boot.img
-fastboot flash fedora root.img
+fastboot flash -S 256M fedora root.img
 fastboot erase dtbo_b
 fastboot set_active b
 fastboot reboot
 ```
+
+Windows: always pass `-S 256M` on `root.img` or fastboot can `std::bad_alloc`.
+Your partition name is `linux` if that is what GPT shows.
 
 - Disable Android OTA updates or they will overwrite Fedora on slot B.
 - Switch OS with `fastboot set_active a|b` (safest), `sudo pipa-switch-slot a|b`

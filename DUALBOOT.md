@@ -241,11 +241,17 @@ Manual equivalent when Android is on slot A:
 
 ```bash
 fastboot flash boot_b boot.img
-fastboot flash fedora root.img
+fastboot flash -S 256M fedora root.img
 fastboot erase dtbo_b
 fastboot set_active b
 fastboot reboot
 ```
+
+On Windows, `fastboot flash linux root.img` without `-S` often dies with
+`std::bad_alloc` (the host tries to load the whole ~5 GiB image). `-S 256M`
+sends Android sparse chunks. Do **not** split `root.img` with `copy`/`split`
+— that corrupts ext4. Stay in PowerShell if `-S` works; WSL2 only helps if
+you attach the tablet with `usbipd` (USB is not visible to WSL by default).
 
 Wait through first boot; it can sit still for several seconds. Do not panic and
 hold Power.

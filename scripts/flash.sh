@@ -16,6 +16,7 @@ boot_img="boot.img"
 root_img="root.img"
 partition="fedora"
 linux_slot="auto"
+sparse_size="256M"
 assume_yes=0
 dry_run=0
 force=0
@@ -40,6 +41,9 @@ Options:
   --yes                Do not ask for confirmation
   --dry-run            Print fastboot commands without running them
   --force              Skip product=pipa check
+  --sparse-size SIZE   Split large images (default: 256M). Stops Windows
+                       fastboot std::bad_alloc on multi-GiB root.img.
+                       0 disables. Same as fastboot -S.
   -h, --help           Show this help
 
 Examples:
@@ -65,6 +69,15 @@ fb() {
     fastboot "$@"
 }
 
+# Large raw ext4 images (root.img) must not be loaded whole on Windows.
+fb_sparse() {
+    if [[ "$sparse_size" != "0" && -n "$sparse_size" ]]; then
+        fb -S "$sparse_size" "$@"
+    else
+        fb "$@"
+    fi
+}
+
 confirm() {
     [[ "$assume_yes" -eq 1 ]] && return 0
     local reply
@@ -82,6 +95,7 @@ while [[ $# -gt 0 ]]; do
         --yes) assume_yes=1; shift ;;
         --dry-run) dry_run=1; shift ;;
         --force) force=1; shift ;;
+        --sparse-size) sparse_size="$2"; shift 2 ;;
         -h|--help) usage; exit 0 ;;
         *) die "unknown argument: $1 (try --help)" ;;
     esac
@@ -159,7 +173,7 @@ This will REPLACE Android on this tablet (both boot slots + userdata).
 EOF
         confirm "Flash singleboot Fedora and wipe Android?"
         fb flash boot_ab "$boot_img"
-        fb flash userdata "$root_img"
+        fb_sparse flash userdata "$root_img"
         fb erase dtbo_ab
         echo "Rebooting. Do not hold Power to force-reboot; wait for Fedora."
         fb reboot
@@ -187,7 +201,7 @@ EOF
         fi
 
         fb flash "boot_${linux_slot}" "$boot_img"
-        fb flash "$partition" "$root_img"
+        fb_sparse flash "$partition" "$root_img"
         fb erase "dtbo_${linux_slot}"
         fb set_active "$linux_slot"
         echo "Rebooting into Fedora (slot ${linux_slot}). Do not force-reboot with Power."
