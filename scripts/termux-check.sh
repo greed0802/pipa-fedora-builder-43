@@ -35,14 +35,25 @@ echo "Tianma if you see:  m82_36_02_0a"
 echo "CSOT   if you see:  m82_42_02_0b"
 echo
 
-echo "=== interesting partitions (MiB) ==="
+echo "=== interesting partitions ==="
+echo "(sizes via awk — Android sh is 32-bit and lies about 128GiB volumes)"
 for n in userdata fedora linux ubuntu artix esp super boot_a boot_b dtbo_a dtbo_b vbmeta_a vbmeta_b; do
     p=/dev/block/by-name/$n
     if [ -e "$p" ] || [ -L "$p" ]; then
         real=$(readlink -f "$p" 2>/dev/null || echo "$p")
         bytes=$(blockdev --getsize64 "$real" 2>/dev/null || echo 0)
-        mib=$((bytes / 1048576))
-        printf "%-12s %8s MiB  %s\n" "$n" "$mib" "$real"
+        mib=$(awk -v b="$bytes" 'BEGIN{printf "%.0f", b/1048576}')
+        gib=$(awk -v b="$bytes" 'BEGIN{printf "%.2f", b/1073741824}')
+        extra=""
+        case "$n" in
+            linux|fedora|ubuntu|artix)
+                [ "$mib" -lt 8192 ] && extra="  TOO SMALL for Fedora"
+                ;;
+            userdata)
+                [ "$mib" -lt 8192 ] && extra="  too small for Android"
+                ;;
+        esac
+        printf "%-12s %8s MiB  %7s GiB  %s%s\n" "$n" "$mib" "$gib" "$real" "$extra"
     fi
 done
 
