@@ -19,6 +19,13 @@ echo "name:     $($GETPROP ro.product.name)"
 echo "model:    $($GETPROP ro.product.model)"
 echo "slot:     $($GETPROP ro.boot.slot_suffix)  (ro.boot.slot=$($GETPROP ro.boot.slot))"
 echo "vbmeta:   $($GETPROP ro.boot.verifiedbootstate)  locked=$($GETPROP ro.boot.flash.locked)"
+dev="$($GETPROP ro.product.device)"
+if [ "$dev" != "pipa" ]; then
+    echo
+    echo "NOTE: ro.product.device is '$dev', not 'pipa'."
+    echo "If cmdline has m82_36/m82_42 this is still a Pad 6 (Magisk spoof is common)."
+    echo "fastboot getvar product should still say pipa."
+fi
 echo
 
 echo "=== cmdline (panel + slot) ==="
