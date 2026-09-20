@@ -1,69 +1,65 @@
 # Installation guide
 
+Unlocked bootloader required. Use `fastboot` from Linux or macOS
+([platform-tools](https://developer.android.com/tools/releases/platform-tools) or
+`android-tools`). Fastboot on Windows is terminally unreliable on pipa.
+
+Build images with [BUILD.md](./BUILD.md), or unzip `boot.img` and `root.img`
+from a [release](https://github.com/rr1111/pipa-fedora-builder-43/releases).
+
+**Credentials:** user `147147` · root `fedora` — change these after the first boot.
+
+Reboot into bootloader with **Volume Down + Power**. After flashing, run
+`fastboot reboot` and wait. Do not hold Power to force a reboot while UFS is
+still writing.
+
 <details>
   <summary><strong>Singleboot installation</strong></summary>
 
-#### Reboot your tablet into bootloader mode by holding ```Volume Down``` and ```Power``` buttons
+Replaces Android. Both boot slots and `userdata` become Fedora.
 
-#### Flash boot image
+```bash
+./scripts/flash.sh singleboot --boot boot.img --root root.img
+```
+
+Manual equivalent:
+
 ```bash
 fastboot flash boot_ab boot.img
-```
-
-#### Flash rootfs image
-```bash
 fastboot flash userdata root.img
-```
-
-#### Clear dtbo partition
-```bash
 fastboot erase dtbo
-```
-
-#### Exit bootloader mode
-```bash
 fastboot reboot
 ```
 
 </details>
 
 <details>
-  <summary><strong>Dualboot installation (untested)</strong></summary>
+  <summary><strong>Dualboot installation (Android slot A, Fedora slot B)</strong></summary>
 
-#### <strong>WARNING:</strong> 
-Even though they **should** work, these instructions are taken 1:1 from the Fedora 42 installation instructions and untested by me! If you do successfully set up a dualboot environment with them, please open a PR removing this warning. 
+**This wipes Android userdata.** You must shrink `userdata` and create a GPT
+partition named `fedora` before the flash commands below. The full walkthrough
+(backup, temporary boot on `super`, `pipa-repartition-dualboot`, restore stock
+`super`/`dtbo_a`, switch OS, unbrick) is in **[DUALBOOT.md](./DUALBOOT.md)**.
 
----
+Once that partition exists:
 
-### Dualboot notes
+```bash
+./scripts/flash.sh dualboot --boot boot.img --root root.img --partition fedora --linux-slot b
+```
 
-- Repartition required
-- Recommended slots configuration: 
-    - Slot A: Android
-    - Slot B: Fedora linux
-- To switch slot from linux use ```sudo qbootctl -s [a|b]```
-- To switch slot from android use [Boot Control](https://github.com/capntrips/BootControl) app
-- Disable Android OTA updates in settings. Otherwise it will override Fedora installation in the other slot
+Manual equivalent:
 
-#### Reboot your tablet into bootloader mode by holding ```Volume Down``` and ```Power``` buttons
-
-#### Flash boot image to slot b
 ```bash
 fastboot flash boot_b boot.img
-```
-
-#### Flash rootfs image
-```bash
-fastboot flash fedora_partition_name_here root.img
-```
-
-#### Clear dtbo partition in slot b
-```bash
+fastboot flash fedora root.img
 fastboot erase dtbo_b
-```
-
-#### Exit bootloader mode
-```bash
+fastboot set_active b
 fastboot reboot
 ```
+
+- Disable Android OTA updates or they will overwrite Fedora on slot B.
+- Switch OS with `fastboot set_active a|b` (safest), `sudo pipa-switch-slot a|b`
+  from Fedora, or [Boot Control](https://github.com/capntrips/BootControl) from Android.
+- `linux` as a partition name is fine too: pass `--partition linux`.
+
 </details>

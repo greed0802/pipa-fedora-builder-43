@@ -21,7 +21,14 @@
 	- ```widevine-installer``` from Asahi Linux
 
 #### [Installation guide](./INSTALL.md)
+#### [Dualboot Android + Fedora](./DUALBOOT.md)
 #### [Image building guide](./BUILD.md)
+
+```bash
+./scripts/build-image.sh plasma          # Docker build → images/
+./scripts/flash.sh singleboot --boot boot.img --root root.img
+./scripts/flash.sh dualboot   --boot boot.img --root root.img   # needs GPT partition "fedora"
+```
 
 ### Kernel Status:
 | Sleep | Speakers | Mic | WLAN | Bluetooth | (Fast) Charging | Battery Status | Hall | Display | Brightness | Touch | GPU | USB (Host/Client) | DP alt mode | UFS | Back Camera | Front Camera | Sensors | Xiaomi Keyboard | Pen | Hall Sensor
@@ -31,8 +38,8 @@
 ### User Notes:
 - The root password is ```fedora```
 - The user password is ```147147```
-
 - Kernel updates are handled by dnf. The updated boot image will be flashed to the active slot
+- Dualboot (Android slot A, Fedora slot B) is documented in [DUALBOOT.md](./DUALBOOT.md). Switching from Fedora: ```sudo pipa-switch-slot a``` — prefer ```fastboot set_active``` from a PC when you can.
 
 ### Issues (all flavors):
 - Front camera doesnt work, back camera might

@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Switch the Xiaomi Pad 6 (pipa) A/B boot slot from Fedora.
+#
+#   sudo pipa-switch-slot a     # Android (recommended layout)
+#   sudo pipa-switch-slot b     # Fedora  (recommended layout)
+#
+# Prefer 'fastboot set_active a|b' from a PC when you can: switching the
+# Qualcomm ABL slot from userspace has bricked some pipa units into a
+# fastboot loop (recoverable by reflashing gpt_both*.bin from a stock ROM).
+
+set -euo pipefail
+
+die() { echo "error: $*" >&2; exit 1; }
+
+slot="${1:-}"
+[[ "$slot" == "a" || "$slot" == "b" || "$slot" == "0" || "$slot" == "1" ]] || {
+    echo "Usage: $0 a|b" >&2
+    echo "  a / 0  typically Android" >&2
+    echo "  b / 1  typically Fedora" >&2
+    exit 1
+}
+
+[[ "$(id -u)" -eq 0 ]] || die "run as root"
+command -v qbootctl >/dev/null || die "qbootctl not installed"
+
+echo "Current slot:"
+qbootctl -c || true
+echo
+echo "Setting active slot to ${slot}..."
+qbootctl -s "$slot"
+echo "Reboot to boot the other OS. If the tablet loops in fastboot, use a PC:"
+echo "  fastboot set_active a|b && fastboot reboot"
+echo "or restore GPT from a stock ROM (see DUALBOOT.md)."

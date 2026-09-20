@@ -1,39 +1,50 @@
 # Building images
 
-### Clone into this repo
+You need Docker, roughly 20 GiB free disk, and (on x86_64) working binfmt for
+aarch64. A mid-range laptop takes about 20 minutes.
 
-```
+### Clone this repo
+
+```bash
 git clone https://github.com/rr1111/pipa-fedora-builder-43
 cd pipa-fedora-builder-43
 ```
 
-### Build the docker container
+### One-shot build
 
+```bash
+./scripts/build-image.sh plasma
 ```
-docker build -t 'pipa-fedora-builder' . 
+
+Flavors: `tty`, `gnome`, `plasma` (default), `plasma-mobile`, `custom`.
+Images land in `images/` as a directory plus a zip (`boot.img` + `root.img`).
+
+### Manual docker commands
+
+```bash
+docker build -t pipa-fedora-builder .
+docker run --privileged --rm \
+  -v "$(pwd)"/images:/build/images \
+  -v /dev:/dev \
+  pipa-fedora-builder <desktop-arg>
 ```
 
-### Run the container with privleges
-- To build the minimal Desktop images:
-```
-docker run --privileged --rm -v "$(pwd)"/images:/build/images -v "/dev:/dev" pipa-fedora-builder <desktop-arg>
-```
-replace ```<desktop-arg>``` with the flavor of your choice:
-```tty```, ```gnome```, ```plasma```, ```plasma-mobile```
+`--privileged` and `/dev` are required for loop devices. Drop `--rm` if you
+want to keep the container. An invalid or missing flavor defaults to `plasma`.
 
-Remove ```-rm``` if you want to keep the container after running 
-
-If you dont pass a desktop arg to the container or pass an invalid one, it will default to ```plasma```!
-
-[Installation guide](./INSTALL.md)
+On non-aarch64 hosts install `qemu-user-static` (the Dockerfile already does
+this inside the build container).
 
 ### Building custom images
-- add your packages in mkosi.profiles/custom.conf
-- or use a group like ```@cosmic-desktop-environment```
-- pass ```custom``` as desktop argument
-- see what happens, if all packages properly enable their services, it should work
 
-### Building Notes
+- Add packages in `mkosi.profiles/custom.conf`
+- Or use a group like `@cosmic-desktop-environment`
+- Pass `custom` as the desktop argument
+- If packages enable their own services, the image should boot to a GUI
 
-- takes ~20 minutes on my mid end laptop, so be patient when building
-- ```qemu-user-static``` is also needed if youre building the image on a ```non-aarch64``` system  
+### After the build
+
+- Singleboot: `./scripts/flash.sh singleboot --boot images/.../boot.img --root images/.../root.img`
+- Dualboot: [DUALBOOT.md](./DUALBOOT.md) then `./scripts/flash.sh dualboot ...`
+
+[Installation guide](./INSTALL.md)
