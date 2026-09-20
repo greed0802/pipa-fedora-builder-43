@@ -1,8 +1,14 @@
 # Installation guide
 
-Unlocked bootloader required. Use `fastboot` from Linux or macOS
+Unlocked bootloader required. If you are still on MIUI 14, unlock **before**
+updating to HyperOS. Use `fastboot` from Linux or macOS
 ([platform-tools](https://developer.android.com/tools/releases/platform-tools) or
 `android-tools`). Fastboot on Windows is terminally unreliable on pipa.
+
+Device keys, OrangeFox backups, `dtbo`, and GPT unbrick match the
+[postmarketOS pipa wiki](https://wiki.postmarketos.org/wiki/Xiaomi_Pad_6_(xiaomi-pipa)).
+Do **not** follow that page's U-Boot / `pmbootstrap` flash for these images —
+see [DUALBOOT.md](./DUALBOOT.md) for the difference.
 
 Build images with [BUILD.md](./BUILD.md), or unzip `boot.img` and `root.img`
 from a [release](https://github.com/rr1111/pipa-fedora-builder-43/releases).

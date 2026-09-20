@@ -1,16 +1,30 @@
 # Dualboot Android + Fedora on Xiaomi Pad 6 (pipa)
 
-This is the A/B-slot layout used by the original pipa Fedora images and by
-ARMtix / postmarketOS:
+Hardware facts (keys, backups, `dtbo`, qbootctl bricks) follow the
+[postmarketOS pipa wiki](https://wiki.postmarketos.org/wiki/Xiaomi_Pad_6_(xiaomi-pipa)).
+The **install method on that page is not this project.**
+
+| | This Fedora builder | postmarketOS wiki (current) |
+| --- | --- | --- |
+| Bootloader | Stock ABL + Android `boot.img` | U-Boot as *secondary* bootloader on `boot` |
+| Rootfs | ext4 `root.img` on `userdata` or a `fedora` partition | `pmbootstrap flasher flash_rootfs` |
+| Dualboot | Slot A Android / slot B Fedora | Not documented there (U-Boot + one Linux) |
+| Panel (CSOT / Tianma) | `kernel-pipa` ships both | Chosen at `pmbootstrap init` |
+
+Do **not** flash the wiki's U-Boot image over this project's `boot.img`.
+`dnf` kernel updates re-flash the active Android boot slot; U-Boot would be
+wiped, and `pmbootstrap flasher flash_kernel` would wipe Fedora the same way.
+
+This is the A/B-slot layout used by the original pipa Fedora images and ARMtix:
 
 | Slot | OS | boot | dtbo | rootfs |
 | --- | --- | --- | --- | --- |
 | A | Android / HyperOS | stock `boot_a` | stock `dtbo_a` | `userdata` |
 | B | Fedora | this project's `boot.img` | **erased** `dtbo_b` | GPT partition named `fedora` |
 
-Linux boots because `dtbo_b` is empty. Android keeps its overlay on slot A.
-Kernel updates from `dnf` flash the *active* slot, so stay on slot B while you
-are in Fedora.
+Linux boots because `dtbo` on that slot is empty. If it is not erased, mainline
+Linux will not boot at all. Android keeps its overlay on slot A. Kernel updates
+from `dnf` flash the *active* slot, so stay on slot B while you are in Fedora.
 
 **You cannot keep Android's current userdata.** Shrinking `userdata` on an FBE
 device destroys the encrypted Android data. Back up first.
@@ -21,7 +35,9 @@ Do not run a batch of commands you have not read.
 
 ## What you need
 
-- Unlocked bootloader
+- Unlocked bootloader. If you are still on **MIUI 14, do not update to HyperOS
+  before unlocking** — Xiaomi makes it much harder afterwards
+  ([pmOS unlocking notes](https://wiki.postmarketos.org/wiki/Unlocking_Bootloaders#Xiaomi)).
 - A PC running Linux or macOS with `fastboot` / `adb` (`android-tools`).
   Fastboot on Windows is unreliable for this device.
 - This project's `boot.img` and `root.img` (build them, or unzip a [release](https://github.com/rr1111/pipa-fedora-builder-43/releases))
@@ -30,27 +46,56 @@ Do not run a batch of commands you have not read.
   - China `23043RP34C`
   - India `23043RP34I`
   Do not cross-flash CN and Global packages.
-- USB-C cable, and a keyboard (USB-C / official folio) for the on-tablet step
+- USB-C cable, and a keyboard (official folio, or USB-C after Linux is up).
+  U-Boot USB host is broken on this SoC; that does not apply once Fedora's
+  kernel is running.
 - Enough space: Plasma root.img is typically 8–12 GiB. Give Fedora **24 GiB or more**.
 
-## 0. Backup
+### Keys
 
-From Android (or a custom recovery), copy off anything you care about.
+- **Fastboot:** hold **Power + Volume Down**
+- **Android recovery:** hold **Power + Volume Up** (Android only; gone once
+  that slot is Linux)
 
-From fastboot, save the partitions you are about to replace:
+## 0. Backup (OrangeFox + `adb pull`)
+
+Copy off anything you care about from Android first.
+
+Boot [OrangeFox for pipa](https://sourceforge.net/projects/recovery-for-xiaomi-devices/files/pipa/)
+once — same procedure as the wiki. Rename the image to `recovery.img`:
+
+```bash
+fastboot boot recovery.img
+```
+
+Optional: note the panel variant (Fedora does not ask, but it is useful if you
+ever build pmOS). In the recovery shell:
+
+```bash
+adb shell grep -o 'msm_drm[^ ]*' /proc/cmdline
+```
+
+- CSOT: `msm_drm.dsi_display0=qcom,mdss_dsi_m82_42_02_0b_dual_dphy_video:`
+- Tianma: `msm_drm.dsi_display0=qcom,mdss_dsi_m82_36_02_0a_dual_dphy_video:`
+
+Pull the partitions you are about to replace:
+
+```bash
+adb pull /dev/block/by-name/super super.img
+adb pull /dev/block/by-name/boot_a boot_a.img
+adb pull /dev/block/by-name/boot_b boot_b.img
+adb pull /dev/block/by-name/dtbo_a dtbo_a.img
+adb pull /dev/block/by-name/dtbo_b dtbo_b.img
+```
+
+`super.img` is large. Skip it only if you will reflash a full fastboot ROM.
+
+Also record:
 
 ```bash
 fastboot getvar current-slot
 fastboot getvar product          # should be pipa
-fastboot fetch boot_a boot_a.img
-fastboot fetch boot_b boot_b.img
-fastboot fetch dtbo_a dtbo_a.img
-fastboot fetch dtbo_b dtbo_b.img
-fastboot fetch super super.img   # large; skip if you will reflash a full ROM
 ```
-
-`fastboot fetch` is not on every fastboot build. If it is missing, boot a
-recovery and `adb pull /dev/block/by-name/<name>`.
 
 ## 1. Temporary Fedora on `super` (so you can edit the GPT)
 
@@ -145,13 +190,14 @@ the ext4 filesystem (`x-systemd.growfs` in fstab).
 
 Disable Android OTA updates. An OTA on slot B overwrites Fedora's `boot_b`.
 
-`pipa-switch-slot` is a wrapper around `qbootctl`. Switching the ABL slot from
-userspace has put some pipa units into a fastboot loop. Prefer `fastboot set_active`
-when a PC is nearby. Recovery is below.
+`pipa-switch-slot` is a wrapper around `qbootctl`. The wiki documents that
+switching the ABL slot from userspace can leave pipa in an endless fastboot
+loop. Prefer `fastboot set_active` when a PC is nearby. Recovery is below.
 
 ## Unbrick / fastboot loop
 
-Reflash the GPT backups from the same HyperOS fastboot ROM:
+Same recovery as the wiki: reflash GPT from a Xiaomi **fastboot** firmware
+archive (`images/gpt_both*.bin` inside the unpacked `.tgz`). No EDL required.
 
 ```bash
 fastboot flash partition:1 gpt_both1.bin
@@ -171,10 +217,21 @@ if you still have the file from step 2.
 Flash a full HyperOS package with `./flash_all.sh` (**not** `flash_all_lock.sh`).
 That restores stock GPT, `super`, both boot slots, and userdata.
 
-## Why not EFI multiboot?
+## After Fedora is up
 
-Some pipa ports (TheMojoMan, nabu-style DBKP) boot several Linux distros from
-an ESP + UKI. This project ships an Android `boot.img` that the kernel-install
+These are device quirks from the same wiki; they apply on Fedora too:
+
+- **Sensors** talk through the Hexagon DSP and often die after suspend.
+  `sudo systemctl restart hexagonrpcd-sdsp` (or install `pipa-sensor-restart`).
+- **HDMI/DP:** unplug the monitor from power before plugging the cable in.
+- **Speakers:** AW88261 on tertiary TDM; a right-channel-only test tone can
+  be silent even when the left speaker works.
+- **Rear camera** may work poorly; **front camera** does not.
+
+## Why not EFI / U-Boot multiboot?
+
+Some pipa ports (TheMojoMan, nabu-style DBKP, current pmOS) boot Linux via
+UEFI/U-Boot. This project ships an Android `boot.img` that the kernel-install
 hook re-flashes on `dnf update`. Slot-based dualboot matches that model: one
 Linux, one Android, no extra bootloader.
 

@@ -57,7 +57,7 @@
 	- Install the [TouchUP extension](https://github.com/mityax/gnome-extension-touchup) to make the Gnome Shell more usable on a Touchscreen
 
 ## Related projects:
-- [postmarketOS](https://wiki.postmarketos.org/wiki/Xiaomi_Pad_6_(xiaomi-pipa)) - pmOS for pipa
+- [postmarketOS (xiaomi-pipa)](https://wiki.postmarketos.org/wiki/Xiaomi_Pad_6_(xiaomi-pipa)) — hardware reference; their current install is U-Boot, not this A/B `boot.img` layout
 - [void-pipa](https://github.com/pipa-mainline/void-pipa) - Void Linux for pipa (EOL?)
 - [void-linux-pipa](https://github.com/userg0d/void-linux-pipa) - Another Void Linux for pipa
 - [pipa-alarm](https://t.me/pipa_mainline/32978) - alarm (Arch Linux ARM) for pipa
