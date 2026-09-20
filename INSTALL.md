@@ -50,8 +50,10 @@ partition named `fedora` before the flash commands below. The full walkthrough
 Once that partition exists:
 
 ```bash
-./scripts/flash.sh dualboot --boot boot.img --root root.img --partition fedora --linux-slot b
+./scripts/flash.sh dualboot --boot boot.img --root root.img --partition fedora
 ```
+
+(`--linux-slot` defaults to `auto`: Fedora on the opposite of `current-slot`.)
 
 Manual equivalent:
 

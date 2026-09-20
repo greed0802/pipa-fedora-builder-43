@@ -3,7 +3,7 @@
 #
 # Usage:
 #   ./scripts/flash.sh singleboot [--boot boot.img] [--root root.img]
-#   ./scripts/flash.sh dualboot   [--boot boot.img] [--root root.img] [--partition fedora] [--linux-slot b]
+#   ./scripts/flash.sh dualboot   [--boot boot.img] [--root root.img] [--partition fedora] [--linux-slot auto]
 #
 # The tablet must already be in fastboot (Volume Down + Power). Dualboot
 # requires a GPT partition named with --partition (default: fedora). See DUALBOOT.md.
@@ -14,7 +14,7 @@ mode=""
 boot_img="boot.img"
 root_img="root.img"
 partition="fedora"
-linux_slot="b"
+linux_slot="auto"
 assume_yes=0
 dry_run=0
 force=0
@@ -31,7 +31,10 @@ Options:
   --boot FILE          boot.img path (default: ./boot.img)
   --root FILE          root.img path (default: ./root.img)
   --partition NAME     GPT partition name for rootfs (dualboot only, default: fedora)
-  --linux-slot a|b     Slot that will run Fedora (dualboot only, default: b)
+  --linux-slot a|b|auto
+                       Slot that will run Fedora (dualboot only).
+                       auto (default) = opposite of fastboot current-slot,
+                       same rule as TheMojoMan's Ubuntu/Fedora pipa images.
   --yes                Do not ask for confirmation
   --dry-run            Print fastboot commands without running them
   --force              Skip product=pipa check
@@ -39,6 +42,7 @@ Options:
 
 Examples:
   ./scripts/flash.sh singleboot --boot boot.img --root root.img
+  ./scripts/flash.sh dualboot --partition fedora
   ./scripts/flash.sh dualboot --partition fedora --linux-slot b
 EOF
 }
@@ -82,8 +86,30 @@ while [[ $# -gt 0 ]]; do
 done
 
 [[ -n "$mode" ]] || { usage >&2; exit 1; }
-[[ "$linux_slot" == "a" || "$linux_slot" == "b" ]] || die "--linux-slot must be a or b"
+[[ "$linux_slot" == "a" || "$linux_slot" == "b" || "$linux_slot" == "auto" ]] \
+    || die "--linux-slot must be a, b, or auto"
 [[ "$partition" =~ ^[A-Za-z0-9_-]+$ ]] || die "invalid partition name: $partition"
+
+current_slot_from_fastboot() {
+    fastboot getvar current-slot 2>&1 | awk -F': ' '/^current-slot:/{print $2; exit}' | tr -d '\r'
+}
+
+resolve_linux_slot() {
+    [[ "$linux_slot" != "auto" ]] && return 0
+    if [[ "$dry_run" -eq 1 ]]; then
+        echo "dry-run: --linux-slot auto would use the opposite of current-slot (showing b, Android on a)"
+        linux_slot="b"
+        return 0
+    fi
+    local current
+    current="$(current_slot_from_fastboot)"
+    case "$current" in
+        a) linux_slot="b" ;;
+        b) linux_slot="a" ;;
+        *) die "could not read current-slot (got '${current:-empty}'). Pass --linux-slot a|b." ;;
+    esac
+    echo "Android is on slot ${current}; Fedora will use slot ${linux_slot}"
+}
 
 need_file "$boot_img"
 need_file "$root_img"
@@ -118,6 +144,7 @@ EOF
         fb reboot
         ;;
     dualboot)
+        resolve_linux_slot
         android_slot="a"
         [[ "$linux_slot" == "a" ]] && android_slot="b"
         cat <<EOF

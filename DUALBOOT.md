@@ -4,16 +4,17 @@ Hardware facts (keys, backups, `dtbo`, qbootctl bricks) follow the
 [postmarketOS pipa wiki](https://wiki.postmarketos.org/wiki/Xiaomi_Pad_6_(xiaomi-pipa)).
 The **install method on that page is not this project.**
 
-| | This Fedora builder | postmarketOS wiki (current) |
-| --- | --- | --- |
-| Bootloader | Stock ABL + Android `boot.img` | U-Boot as *secondary* bootloader on `boot` |
-| Rootfs | ext4 `root.img` on `userdata` or a `fedora` partition | `pmbootstrap flasher flash_rootfs` |
-| Dualboot | Slot A Android / slot B Fedora | Not documented there (U-Boot + one Linux) |
-| Panel (CSOT / Tianma) | `kernel-pipa` ships both | Chosen at `pmbootstrap init` |
+| | This Fedora builder | postmarketOS wiki | [TheMojoMan xiaomi-pipa](https://github.com/TheMojoMan/xiaomi-pipa) (archived) |
+| --- | --- | --- | --- |
+| Bootloader | Stock ABL + this `boot.img` | U-Boot as *secondary* bootloader | Same A/B `boot.img` as us, *or* `pipa_dualrole.img` (Mu-Qcom EFI) |
+| Rootfs | ext4 on a partition named `fedora` | `pmbootstrap flasher flash_rootfs` | `fastboot flash ubuntu` / `fedora` |
+| Dualboot | Linux on the slot Android is **not** using | Not documented (U-Boot + one Linux) | Same slot rule; optional EFI menu for several distros |
+| Extra GPT | `fedora` only | n/a | `esp` + `ubuntu`/`fedora` (rename `linux` first) |
+| Panel | `kernel-pipa` ships CSOT and Tianma | Chosen at `pmbootstrap init` | n/a |
 
-Do **not** flash the wiki's U-Boot image over this project's `boot.img`.
-`dnf` kernel updates re-flash the active Android boot slot; U-Boot would be
-wiped, and `pmbootstrap flasher flash_kernel` would wipe Fedora the same way.
+Do **not** flash the wiki's U-Boot image, or TheMojoMan's `pipa_dualrole.img`, over
+this project's `boot.img`. `dnf` kernel updates re-flash the active Android boot
+slot and would wipe those bootloaders.
 
 This is the A/B-slot layout used by the original pipa Fedora images and ARMtix:
 
@@ -97,7 +98,12 @@ fastboot getvar current-slot
 fastboot getvar product          # should be pipa
 ```
 
-## 1. Temporary Fedora on `super` (so you can edit the GPT)
+## 1. Make a `fedora` partition
+
+You need a GPT partition **named** `fedora` (or `linux` / `ubuntu` if you
+already have one — pass that name to `flash.sh --partition`). Two ways:
+
+### 1a. Temporary Fedora on `super` (no TWRP)
 
 `super` is only a staging area. Android will not boot until you restore it.
 
@@ -114,9 +120,7 @@ Wait. Do **not** hold Power to force a reboot while the image is still writing.
 
 Log in: `user` / `147147` (or `root` / `fedora`). Open a terminal.
 
-## 2. Shrink userdata, create `fedora`
-
-On the tablet:
+Then shrink userdata:
 
 ```bash
 sudo pipa-repartition-dualboot --android-size 80G
@@ -136,7 +140,33 @@ If you would rather click around, `sudo cfdisk /dev/sda` works too: resize
 `userdata`, create a new partition in the free space, `sudo parted /dev/sda name <N> fedora`.
 Do not touch any partition other than `userdata` and the new one.
 
-## 3. Wipe Android userdata and restore Android on slot A
+This image does **not** need an `esp` partition. Only create one if you later
+want TheMojoMan EFI multiboot (and you accept that it fights `dnf` kernel
+updates — see below).
+
+### 1b. TWRP + `parted` (TheMojoMan)
+
+Same idea as [TheMojoMan's Ubuntu/Fedora install](https://github.com/TheMojoMan/xiaomi-pipa):
+boot TWRP, shrink `userdata`, create a Linux partition. Their write-up points at
+the [Windows-on-pipa TWRP guide](https://xdaforums.com/t/pipa-how-to-install-windows-11-on-xiaomi-pad-6.4647419/)
+→ “Making Windows Partitions” → Non-GUI method, but **name the new partition
+`fedora`**, not `windows` or `ubuntu`. Example if you want ~30 GiB at the end of
+a 256 GiB disk:
+
+```text
+mkpart fedora ext4 224GB 253GB
+```
+
+If a partition named `linux` already exists from an older port, rename it:
+
+```bash
+parted /dev/sda name <N> fedora
+```
+
+You still must `fastboot -w` (or reflash Android) after shrinking FBE userdata.
+Then skip the temporary `super` boot and continue at step 2.
+
+## 2. Wipe Android userdata and restore Android on slot A
 
 Back to fastboot (Volume Down + Power):
 
@@ -159,15 +189,23 @@ Do **not** flash `dtbo_b` — Fedora needs it empty.
 If Android was already a custom ROM you want to keep, flash that ROM's
 `super` / `boot_a` / `dtbo_a` instead.
 
-## 4. Flash Fedora to slot B
+## 3. Flash Fedora to the *other* slot
 
-From the directory that contains this repo's `boot.img` and `root.img`:
+TheMojoMan's rule, which `flash.sh dualboot` uses by default: look at
+`fastboot getvar current-slot` (that is Android) and put Fedora on the opposite
+slot. If Android is on `a`, Fedora goes to `b`.
+
+```bash
+./scripts/flash.sh dualboot --boot boot.img --root root.img --partition fedora
+```
+
+Force slot B (recommended layout if you restored stock to A):
 
 ```bash
 ./scripts/flash.sh dualboot --boot boot.img --root root.img --partition fedora --linux-slot b
 ```
 
-Equivalent manual commands (the original INSTALL.md was missing `set_active`):
+Manual equivalent when Android is on slot A:
 
 ```bash
 fastboot flash boot_b boot.img
@@ -176,6 +214,9 @@ fastboot erase dtbo_b
 fastboot set_active b
 fastboot reboot
 ```
+
+Wait through first boot; it can sit still for several seconds. Do not panic and
+hold Power.
 
 The `fedora` partition must be **larger** than `root.img`. First boot grows
 the ext4 filesystem (`x-systemd.growfs` in fstab).
@@ -228,14 +269,29 @@ These are device quirks from the same wiki; they apply on Fedora too:
   be silent even when the left speaker works.
 - **Rear camera** may work poorly; **front camera** does not.
 
-## Why not EFI / U-Boot multiboot?
+## Why not TheMojoMan EFI multiboot (`pipa_dualrole.img`)?
 
-Some pipa ports (TheMojoMan, nabu-style DBKP, current pmOS) boot Linux via
-UEFI/U-Boot. This project ships an Android `boot.img` that the kernel-install
-hook re-flashes on `dnf update`. Slot-based dualboot matches that model: one
-Linux, one Android, no extra bootloader.
+[TheMojoMan's extra step](https://github.com/TheMojoMan/xiaomi-pipa/blob/main/pipa-multiboot.md)
+replaces the Linux boot slot with `pipa_dualrole.img` (Mu-Qcom) and copies UKIs
+onto an `esp` partition. Volume keys pick Ubuntu/Fedora/Arch/pmOS; **Vol-down
+2–3 times right after the Mu-Qcom splash** returns to Android.
 
-If you already have an `esp` + `linux` layout from another distro, you can
-still `fastboot flash linux root.img` and `fastboot flash boot_b boot.img` —
-use `--partition linux` — as long as you accept that kernel updates will write
-`boot.img` to whichever slot is active.
+Do **not** do that on top of this builder:
+
+- `dnf` kernel updates flash a new Android `boot.img` to the active slot and
+  overwrite Mu-Qcom.
+- Kernel modules then no longer match the UKI on `esp` (TheMojoMan's own
+  troubleshooting note).
+- Their Ubuntu/Fedora images were marked **EXPERIMENTAL** (unreliable boots)
+  and the repo was **archived** in October 2025.
+
+Stay on this project's `boot.img` and switch OS with `fastboot set_active` /
+`pipa-switch-slot`. If you already have `esp` + `linux` from that layout, you
+can still:
+
+```bash
+./scripts/flash.sh dualboot --boot boot.img --root root.img --partition linux
+```
+
+Kernel updates will keep writing `boot.img` to the active slot. Do not also
+flash `pipa_dualrole.img`.

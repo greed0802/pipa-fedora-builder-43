@@ -58,6 +58,7 @@
 
 ## Related projects:
 - [postmarketOS (xiaomi-pipa)](https://wiki.postmarketos.org/wiki/Xiaomi_Pad_6_(xiaomi-pipa)) — hardware reference; their current install is U-Boot, not this A/B `boot.img` layout
+- [TheMojoMan/xiaomi-pipa](https://github.com/TheMojoMan/xiaomi-pipa) — archived Ubuntu/Fedora 42 + EFI multiboot; same A/B slot rule, do not mix `pipa_dualrole.img` with this `boot.img`
 - [void-pipa](https://github.com/pipa-mainline/void-pipa) - Void Linux for pipa (EOL?)
 - [void-linux-pipa](https://github.com/userg0d/void-linux-pipa) - Another Void Linux for pipa
 - [pipa-alarm](https://t.me/pipa_mainline/32978) - alarm (Arch Linux ARM) for pipa
