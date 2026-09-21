@@ -43,14 +43,26 @@ Available cameras:
 2: Internal front camera (.../camera@20)
 ```
 
-Rectangle/IPA-helper warnings are normal. Then:
+Rectangle/IPA-helper warnings are normal. Fedora’s `libcamera-tools` has `cam`, not `qcam`:
 
 ```bash
+sudo dnf install -y libcamera-qcam libcamera-gstreamer gstreamer1-plugins-good
 systemctl --user restart pipewire pipewire-pulse wireplumber
-qcam          # preview; pick Internal front or Internal back
+qcam
+# or:
+cam -c 1 -s width=1280,height=720 -C 20   # back
+cam -c 2 -s width=1280,height=720 -C 20   # front (2-lane; do not request 3264x*)
 ```
 
-Meet / Messenger / Firefox: camera device **Internal front camera** or **Internal back camera**. Never Iris / random `videoN`.
+Meet / Messenger / Firefox: **Internal front camera** or **Internal back camera**. Never Iris / random `videoN`.
+
+**Do not switch cameras mid-call.** CAMSS can stream one sensor. Opening HI846 while OV13B10 is live (or a 3264× front mode) hangs the ISP and **both** cameras die until:
+
+```bash
+sudo ~/pipa-fedora-builder-43/scripts/pipa-camera-recover.sh
+```
+
+Then start a **new** Meet tab with the camera you want already chosen (site settings), not the in-call switcher.
 
 If the plugin was installed after login, log out once so PipeWire reloads `pipewire-plugin-libcamera`.
 
