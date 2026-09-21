@@ -37,6 +37,14 @@ FRAG="$HERE/kernel-camera/config.fragment"
 EXTRAVERSION="${EXTRAVERSION:--pipa-cam}"
 
 [[ -f $BOARD ]] || { echo "not pipadb/linux: $BOARD" >&2; exit 1; }
+kver=$(awk '/^VERSION =/{v=$3} /^PATCHLEVEL =/{p=$3} END{print v "." p}' "$TREE/Makefile")
+case $kver in
+  7.1|7.2) ;;
+  *)
+    echo "Refusing Linux $kver. Boot 7.1.2-2.pipa.fc44 and patch a 7.1 pipadb tree." >&2
+    exit 1
+    ;;
+esac
 grep -q 'sm8250-xiaomi-pipa-camera.dtsi' "$BOARD" || {
   echo "Camera DTSI not included. Run: $HERE/scripts/patch-kernel-pipa-cameras.sh $TREE" >&2
   exit 1

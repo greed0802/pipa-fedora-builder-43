@@ -36,6 +36,19 @@ DTSI_DST="$TREE/arch/arm64/boot/dts/qcom/sm8250-xiaomi-pipa-camera.dtsi"
   exit 1
 }
 
+kver=$(awk '/^VERSION =/{v=$3} /^PATCHLEVEL =/{p=$3} END{print v "." p}' "$TREE/Makefile")
+case $kver in
+  7.1|7.2) ;;
+  *)
+    echo "Refusing $TREE (Linux $kver). kernel-pipa is 7.1.x; 7.0.8-pipa-cam killed speakers." >&2
+    echo "Clone the 7.1 tree, e.g.:" >&2
+    echo "  git clone --depth 1 https://github.com/pipadb/linux.git ~/linux-pipa-71" >&2
+    echo "  git -C ~/linux-pipa-71 fetch --depth 1 origin 8205db9b0e34f9be5064c9244cc5ad94c4aca9a6" >&2
+    echo "  git -C ~/linux-pipa-71 checkout 8205db9b0e34f9be5064c9244cc5ad94c4aca9a6" >&2
+    exit 1
+    ;;
+esac
+
 apply_one() {
   local p=$1
   if git -C "$TREE" apply --check "$p" >/dev/null 2>&1; then

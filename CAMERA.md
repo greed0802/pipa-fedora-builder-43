@@ -11,15 +11,20 @@ writes Fedora’s `boot.img` the same way `dnf` does.
 
 ### 1. On the Pad (Konsole, Wi‑Fi)
 
+**Do not** `git clone --depth 1` pipadb default branch — that is **7.0.8** and boots as `7.0.8-pipa-cam+` with no `/dev/snd` PCM (Dummy Output). Use a **7.1** tree matching `kernel-pipa`:
+
 ```bash
 sudo dnf install -y git
 cd ~
-git clone --depth 1 https://github.com/pipadb/linux.git linux-pipa
+git clone https://github.com/pipadb/linux.git linux-pipa-71
+git -C ~/linux-pipa-71 fetch --depth 1 origin 8205db9b0e34f9be5064c9244cc5ad94c4aca9a6
+git -C ~/linux-pipa-71 checkout 8205db9b0e34f9be5064c9244cc5ad94c4aca9a6
+# Makefile must say VERSION=7 PATCHLEVEL=1
 git clone --depth 1 -b arena/01a0bd69-pipa-fedora-builder-43 \
   https://github.com/greed0802/pipa-fedora-builder-43.git
 cd pipa-fedora-builder-43
-./scripts/patch-kernel-pipa-cameras.sh ~/linux-pipa
-sudo ./scripts/build-install-camera-kernel.sh ~/linux-pipa
+./scripts/patch-kernel-pipa-cameras.sh ~/linux-pipa-71
+sudo ./scripts/build-install-camera-kernel.sh ~/linux-pipa-71
 ```
 
 That takes **30–90 minutes**. It saves `~/boot-linux-backup.img` first.
