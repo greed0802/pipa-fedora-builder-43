@@ -42,7 +42,7 @@
 - Dualboot (Android slot A, Fedora slot B) is documented in [DUALBOOT.md](./DUALBOOT.md). Switching from Fedora: ```sudo pipa-switch-slot a``` — prefer ```fastboot set_active``` from a PC when you can.
 
 ### Issues (all flavors):
-- Front camera doesnt work, back camera might. ArchPad camera bits can be applied onto kernel-pipa — see [CAMERA.md](./CAMERA.md) / [kernel-camera/](./kernel-camera/README.md). Do not flash `linux-archpad-pipa` onto Fedora.
+- Cameras: patched `kernel-pipa` + ArchPad DT lists both in `cam --list` (rear ov13b10, front hi846). Stock COPR kernel still has no sensors. See [CAMERA.md](./CAMERA.md). Do not flash `linux-archpad-pipa`.
 - Sensors may break after suspend, so they are disabled by default. To enable them install ```pipa-sensors``` and enable the ```iio-sensor-proxy``` & ```hexagonrpcd-sdsp``` services
 - To automatically restart the services and fix the sensors, install ```pipa-sensor-restart```. It takes ~10-15s after waking for the sensors to come back online (might not always work)
 

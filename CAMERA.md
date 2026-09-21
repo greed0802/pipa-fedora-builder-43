@@ -35,7 +35,24 @@ cam --list
 dmesg | grep -iE 'ov13|hi846|cci'
 ```
 
-Expect `ov13b10` and/or `hi846`. Then Meet can pick that camera — not Iris.
+Expect:
+
+```
+Available cameras:
+1: Internal back camera (.../camera@10)
+2: Internal front camera (.../camera@20)
+```
+
+Rectangle/IPA-helper warnings are normal. Then:
+
+```bash
+systemctl --user restart pipewire pipewire-pulse wireplumber
+qcam          # preview; pick Internal front or Internal back
+```
+
+Meet / Messenger / Firefox: camera device **Internal front camera** or **Internal back camera**. Never Iris / random `videoN`.
+
+If the plugin was installed after login, log out once so PipeWire reloads `pipewire-plugin-libcamera`.
 
 ### 3. If the panel stays black
 
