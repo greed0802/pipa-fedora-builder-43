@@ -48,10 +48,15 @@ Rectangle/IPA-helper warnings are normal. Fedora’s `libcamera-tools` has `cam`
 ```bash
 sudo dnf install -y libcamera-qcam libcamera-gstreamer gstreamer1-plugins-good
 systemctl --user restart pipewire pipewire-pulse wireplumber
-qcam
-# or:
-cam -c 1 -s width=1280,height=720 --capture=20   # back
-cam -c 2 -s width=1280,height=720 --capture=20   # front (2-lane; do not request 3264x*)
+# qcam defaults to max Bayer (4208×3120 / 1632×1224) and dies with
+# "dma-heap allocation failure". Force 720p:
+cam -c 1 -s width=1280,height=720,role=viewfinder --capture=5 -F /tmp/back-#.ppm
+cam -c 2 -s width=1280,height=720,role=viewfinder --capture=5 -F /tmp/front-#.ppm
+xdg-open /tmp/back-000000.ppm
+
+# audio/cameras gone after a bad recover:
+systemctl --user start pipewire.socket pipewire pipewire-pulse wireplumber
+pactl list short sinks
 ```
 
 Meet / Messenger / Firefox: **Internal front camera** or **Internal back camera**. Never Iris / random `videoN`.
