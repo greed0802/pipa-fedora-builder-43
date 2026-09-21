@@ -18,19 +18,15 @@ GPIO/regulator map is ArchPad’s reading of Xiaomi `pipa-t-oss`, not invented h
 VCM (DW9714 on CCI0 0x0c / L7 2.85 V) is **not** enabled — ArchPad never added
 the VCM node, only `regulator-always-on` on L7.
 
-## Build (WSL Linux FS, not `/mnt/c`)
+## Build and install **on the Pad**
+
+Do not `make ARCH=arm64` on WSL x86_64. Steps: [CAMERA.md](../CAMERA.md).
 
 ```bash
-git clone --depth 1 https://github.com/pipadb/linux.git ~/linux-pipa
-# or checkout the tag matching `uname -r` (7.1.2-2.pipa.fc44 / 7.1.7)
-cd ~/pipa-fedora-builder-43
-./scripts/patch-kernel-pipa-cameras.sh ~/linux-pipa
+# on the Pad
+~/pipa-fedora-builder-43/scripts/patch-kernel-pipa-cameras.sh ~/linux-pipa
+sudo ~/pipa-fedora-builder-43/scripts/build-install-camera-kernel.sh ~/linux-pipa
 ```
-
-Then build **as kernel-pipa** (same `boot.img` + dtb path Fedora already uses).
-A full `linux-archpad-pipa` `makepkg` is the wrong artifact.
-
-Arena cannot compile this kernel.
 
 ## After install on the Pad
 
