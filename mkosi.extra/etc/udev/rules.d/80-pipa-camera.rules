@@ -2,4 +2,6 @@
 SUBSYSTEM=="video4linux", KERNEL=="video*", GROUP="video", MODE="0660", TAG+="uaccess"
 SUBSYSTEM=="media", KERNEL=="media*", GROUP="video", MODE="0660", TAG+="uaccess"
 # qcam/libcamera software ISP allocates from dma-heaps (CMA). 0600 root = silent white preview.
+# kernel 7.x names the CMA heap default_cma_region; libcamera 0.7 opens linux,cma.
 SUBSYSTEM=="dma_heap", GROUP="video", MODE="0660", TAG+="uaccess"
+SUBSYSTEM=="dma_heap", KERNEL=="default_cma_region", SYMLINK+="dma_heap/linux,cma"
