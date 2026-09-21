@@ -16,10 +16,8 @@ writes Fedora’s `boot.img` the same way `dnf` does.
 ```bash
 sudo dnf install -y git
 cd ~
-git clone https://github.com/pipadb/linux.git linux-pipa-71
-git -C ~/linux-pipa-71 fetch --depth 1 origin 8205db9b0e34f9be5064c9244cc5ad94c4aca9a6
-git -C ~/linux-pipa-71 checkout 8205db9b0e34f9be5064c9244cc5ad94c4aca9a6
-# Makefile must say VERSION=7 PATCHLEVEL=1
+git clone --depth 1 --branch pipa/7.1 https://github.com/PipaDB/linux.git linux-pipa-71
+# Makefile must say VERSION=7 PATCHLEVEL=1  (not 7.0)
 git clone --depth 1 -b arena/01a0bd69-pipa-fedora-builder-43 \
   https://github.com/greed0802/pipa-fedora-builder-43.git
 cd pipa-fedora-builder-43
@@ -29,9 +27,7 @@ sudo ./scripts/build-install-camera-kernel.sh ~/linux-pipa-71
 
 That takes **30–90 minutes**. It saves `~/boot-linux-backup.img` first.
 
-If you already patched `~/linux-pipa` in WSL, copy that tree to the Pad
-instead of cloning again (`scp -r` from WSL, or a USB stick). Still **build
-on the Pad**.
+Do **not** reuse `~/linux-pipa` if `head Makefile` is 7.0. That tree is `7.0.8-pipa-cam+`.
 
 ### 2. Reboot, still Fedora slot B
 
