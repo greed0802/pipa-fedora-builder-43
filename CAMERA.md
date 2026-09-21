@@ -50,8 +50,8 @@ sudo dnf install -y libcamera-qcam libcamera-gstreamer gstreamer1-plugins-good
 systemctl --user restart pipewire pipewire-pulse wireplumber
 qcam
 # or:
-cam -c 1 -s width=1280,height=720 -C 20   # back
-cam -c 2 -s width=1280,height=720 -C 20   # front (2-lane; do not request 3264x*)
+cam -c 1 -s width=1280,height=720 --capture=20   # back
+cam -c 2 -s width=1280,height=720 --capture=20   # front (2-lane; do not request 3264x*)
 ```
 
 Meet / Messenger / Firefox: **Internal front camera** or **Internal back camera**. Never Iris / random `videoN`.
