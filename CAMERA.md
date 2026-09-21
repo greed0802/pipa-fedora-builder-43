@@ -3,30 +3,62 @@
 `cam --list` showing **No sensor found** with many `/dev/video*` nodes is expected
 on stock `kernel-pipa`. Those nodes are CAMSS ISP + Iris, not OV13B10 / HI846.
 
-## Assimilate ArchPad into kernel-pipa (not a kernel swap)
+## Install the patched kernel (on the Pad, not WSL)
 
-ArchPad claims working cameras. Their kernel is **not** drop-in on this Fedora
-image. Use [kernel-camera/](./kernel-camera/README.md) and:
+WSL only **patched source**. `make ARCH=arm64` on the laptop builds the wrong
+arch. Compile and `kernel-install` on the tablet so `pipa-kernel-flasher-hook`
+writes Fedora’s `boot.img` the same way `dnf` does.
+
+### 1. On the Pad (Konsole, Wi‑Fi)
 
 ```bash
-./scripts/patch-kernel-pipa-cameras.sh /path/to/pipadb/linux
+sudo dnf install -y git
+cd ~
+git clone --depth 1 https://github.com/pipadb/linux.git linux-pipa
+git clone --depth 1 -b arena/01a0bd69-pipa-fedora-builder-43 \
+  https://github.com/greed0802/pipa-fedora-builder-43.git
+cd pipa-fedora-builder-43
+./scripts/patch-kernel-pipa-cameras.sh ~/linux-pipa
+sudo ./scripts/build-install-camera-kernel.sh ~/linux-pipa
 ```
 
-That patches **pipadb/linux** with ArchPad’s ov13b10/hi846 drivers and a camera
-DTSI. You must rebuild/install that as `kernel-pipa` (WSL). This mkosi tree
-cannot produce a new `boot.img` by itself.
+That takes **30–90 minutes**. It saves `~/boot-linux-backup.img` first.
 
-Userspace already ships libcamera + PipeWire plugin + IPA YAML
-(`mkosi.extra/usr/share/libcamera/ipa/simple/{ov13b10,hi846}.yaml`).
+If you already patched `~/linux-pipa` in WSL, copy that tree to the Pad
+instead of cloning again (`scp -r` from WSL, or a USB stick). Still **build
+on the Pad**.
 
-## On a running tablet (stock kernel)
+### 2. Reboot, still Fedora slot B
 
 ```bash
 cam --list
-v4l2-ctl --list-devices
-dmesg | grep -iE 'ov13|hi846|camss|cci'
+dmesg | grep -iE 'ov13|hi846|cci'
 ```
 
-Empty `cam --list` → USB webcam, or the patched kernel above.
+Expect `ov13b10` and/or `hi846`. Then Meet can pick that camera — not Iris.
 
-Do not pick “Iris Decoder” in Meet.
+### 3. If the panel stays black
+
+PC + WSL/`usbipd` (not Windows `fastboot` for this):
+
+```bash
+fastboot flash boot_b ./boot-linux-backup.img
+fastboot erase dtbo_b
+fastboot set_active b
+```
+
+Copy `boot-linux-backup.img` off the Pad **before** you reboot into a bad kernel
+(KDE, USB stick, or `scp`).
+
+Do **not** `dnf upgrade kernel-pipa` after this — COPR would replace the camera
+kernel. Do **not** flash `linux-archpad-pipa`.
+
+Userspace IPA files (for a future image rebuild):
+`mkosi.extra/usr/share/libcamera/ipa/simple/{ov13b10,hi846}.yaml`.
+On the running Pad, copy them if missing:
+
+```bash
+sudo mkdir -p /usr/share/libcamera/ipa/simple
+sudo cp ~/pipa-fedora-builder-43/mkosi.extra/usr/share/libcamera/ipa/simple/*.yaml \
+  /usr/share/libcamera/ipa/simple/
+```
