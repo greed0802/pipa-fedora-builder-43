@@ -14,8 +14,8 @@ as_user() {
   fi
 }
 
-echo "==> stop PipeWire (releases /dev/video*)"
-as_user systemctl --user stop wireplumber pipewire-pulse pipewire || true
+echo "==> stop *your* PipeWire (never: sudo systemctl --user)"
+as_user systemctl --user stop wireplumber pipewire-pulse pipewire.socket pipewire || true
 sleep 1
 
 if [[ $(id -u) -ne 0 ]]; then
@@ -25,13 +25,18 @@ fi
 
 echo "==> reload hi846, ov13b10, qcom_camss"
 modprobe -r hi846 ov13b10 qcom_camss 2>/dev/null || true
+if lsmod | grep -q qcom_camss; then
+  echo "qcom_camss still in use — reboot the Pad instead of rmmod -f" >&2
+  as_user systemctl --user start pipewire.socket pipewire pipewire-pulse wireplumber || true
+  exit 1
+fi
 modprobe qcom_camss
 modprobe ov13b10
 modprobe hi846
 sleep 1
 
-echo "==> start PipeWire"
-as_user systemctl --user start pipewire pipewire-pulse wireplumber
+echo "==> start PipeWire (speakers + mics + cameras)"
+as_user systemctl --user start pipewire.socket pipewire pipewire-pulse wireplumber
 
 echo "Recovered. Do not hot-switch cameras in Meet."
 echo "Front: start the call with Internal front already selected."

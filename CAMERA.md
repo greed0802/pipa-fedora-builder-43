@@ -56,11 +56,22 @@ cam -c 2 -s width=1280,height=720 --capture=20   # front (2-lane; do not request
 
 Meet / Messenger / Firefox: **Internal front camera** or **Internal back camera**. Never Iris / random `videoN`.
 
-**Do not switch cameras mid-call.** CAMSS can stream one sensor. Opening HI846 while OV13B10 is live (or a 3264× front mode) hangs the ISP and **both** cameras die until:
+**Do not switch cameras mid-call.** CAMSS can stream one sensor. Opening HI846 while OV13B10 is live hangs the ISP and **both** cameras die.
+
+Never run `sudo systemctl --user …` — that stops **root’s** empty session and leaves **your** PipeWire (speakers + mics) dead, while `qcom_camss` stays busy.
+
+Fastest recover: **reboot**.
+
+Or, as `user` (sudo only on modprobe):
 
 ```bash
-sudo ~/pipa-fedora-builder-43/scripts/pipa-camera-recover.sh
+systemctl --user stop wireplumber pipewire-pulse pipewire
+sudo modprobe -r hi846 ov13b10 qcom_camss
+sudo modprobe qcom_camss ov13b10 hi846
+systemctl --user start pipewire pipewire-pulse wireplumber
 ```
+
+If `qcom_camss is in use`, reboot. Then start a **new** Meet tab with the camera already chosen.
 
 Then start a **new** Meet tab with the camera you want already chosen (site settings), not the in-call switcher.
 
