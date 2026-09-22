@@ -21,7 +21,14 @@
 	- ```widevine-installer``` from Asahi Linux
 
 #### [Installation guide](./INSTALL.md)
+#### [Dualboot Android + Fedora](./DUALBOOT.md)
 #### [Image building guide](./BUILD.md)
+
+```bash
+./scripts/build-image.sh plasma          # Docker build → images/
+./scripts/flash.sh singleboot --boot boot.img --root root.img
+./scripts/flash.sh dualboot   --boot boot.img --root root.img   # needs GPT partition "fedora"
+```
 
 ### Kernel Status:
 | Sleep | Speakers | Mic | WLAN | Bluetooth | (Fast) Charging | Battery Status | Hall | Display | Brightness | Touch | GPU | USB (Host/Client) | DP alt mode | UFS | Back Camera | Front Camera | Sensors | Xiaomi Keyboard | Pen | Hall Sensor
@@ -31,11 +38,11 @@
 ### User Notes:
 - The root password is ```fedora```
 - The user password is ```147147```
-
 - Kernel updates are handled by dnf. The updated boot image will be flashed to the active slot
+- Dualboot (Android slot A, Fedora slot B) is documented in [DUALBOOT.md](./DUALBOOT.md). Switching from Fedora: ```sudo pipa-switch-slot a``` — prefer ```fastboot set_active``` from a PC when you can.
 
 ### Issues (all flavors):
-- Front camera doesnt work, back camera might
+- Cameras: patched `kernel-pipa` + ArchPad DT lists both in `cam --list` (rear ov13b10, front hi846). Stock COPR kernel still has no sensors. See [CAMERA.md](./CAMERA.md). Do not flash `linux-archpad-pipa`.
 - Sensors may break after suspend, so they are disabled by default. To enable them install ```pipa-sensors``` and enable the ```iio-sensor-proxy``` & ```hexagonrpcd-sdsp``` services
 - To automatically restart the services and fix the sensors, install ```pipa-sensor-restart```. It takes ~10-15s after waking for the sensors to come back online (might not always work)
 
@@ -50,7 +57,8 @@
 	- Install the [TouchUP extension](https://github.com/mityax/gnome-extension-touchup) to make the Gnome Shell more usable on a Touchscreen
 
 ## Related projects:
-- [postmarketOS](https://wiki.postmarketos.org/wiki/Xiaomi_Pad_6_(xiaomi-pipa)) - pmOS for pipa
+- [postmarketOS (xiaomi-pipa)](https://wiki.postmarketos.org/wiki/Xiaomi_Pad_6_(xiaomi-pipa)) — hardware reference; their current install is U-Boot, not this A/B `boot.img` layout
+- [TheMojoMan/xiaomi-pipa](https://github.com/TheMojoMan/xiaomi-pipa) — archived Ubuntu/Fedora 42 + EFI multiboot; same A/B slot rule, do not mix `pipa_dualrole.img` with this `boot.img`
 - [void-pipa](https://github.com/pipa-mainline/void-pipa) - Void Linux for pipa (EOL?)
 - [void-linux-pipa](https://github.com/userg0d/void-linux-pipa) - Another Void Linux for pipa
 - [pipa-alarm](https://t.me/pipa_mainline/32978) - alarm (Arch Linux ARM) for pipa

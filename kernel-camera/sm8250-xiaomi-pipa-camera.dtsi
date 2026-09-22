@@ -1,0 +1,170 @@
+// SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+/*
+ * Xiaomi Pad 6 (pipa) cameras — ported from ArchPad-Pipa onto pipadb/linux.
+ *
+ * Rear  OV13B10  CCI0 I2C0 0x10  CSIPHY1  MCLK0/gpio94  RESET/gpio93  VANA/gpio31
+ * Front HI846    CCI1 I2C1 0x20  CSIPHY4  MCLK3/gpio97  RESET/gpio109 VANA/gpio84
+ *
+ * Electricals match ArchPad (Xiaomi pipa-t-oss). Do not "improve" GPIOs.
+ */
+
+#include <dt-bindings/media/video-interfaces.h>
+
+/ {
+	camera_wide_vana: camera-wide-vana-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "camera_wide_vana";
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+		regulator-enable-ramp-delay = <135>;
+		enable-active-high;
+		gpio = <&tlmm 31 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vreg_bob>;
+	};
+
+	camera_front_vana: camera-front-vana-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "camera_front_vana";
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+		regulator-enable-ramp-delay = <135>;
+		enable-active-high;
+		gpio = <&tlmm 84 GPIO_ACTIVE_HIGH>;
+		vin-supply = <&vreg_bob>;
+	};
+};
+
+&camcc {
+	status = "okay";
+};
+
+&camss {
+	vdda-phy-supply = <&vreg_l5a_0p88>;
+	vdda-pll-supply = <&vreg_l9a_1p2>;
+	status = "okay";
+
+	ports {
+		port@1 {
+			csiphy1_ep: endpoint {
+				clock-lanes = <7>;
+				data-lanes = <0 1 2 3>;
+				bus-type = <MEDIA_BUS_TYPE_CSI2_DPHY>;
+				remote-endpoint = <&camera_ov13b10_ep>;
+			};
+		};
+
+		port@4 {
+			csiphy4_ep: endpoint {
+				clock-lanes = <7>;
+				data-lanes = <0 1>;
+				bus-type = <MEDIA_BUS_TYPE_CSI2_DPHY>;
+				remote-endpoint = <&camera_hi846_ep>;
+			};
+		};
+	};
+};
+
+&cci0 {
+	status = "okay";
+};
+
+&cci0_i2c0 {
+	camera_wide: camera@10 {
+		compatible = "ovti,ov13b10";
+		reg = <0x10>;
+		avdd-supply = <&camera_wide_vana>;
+		dvdd-supply = <&vreg_l3c_1p2>;
+		dovdd-supply = <&vreg_l1c_1p8>;
+		clocks = <&camcc CAM_CC_MCLK0_CLK>;
+		clock-frequency = <19200000>;
+		reset-gpios = <&tlmm 93 GPIO_ACTIVE_LOW>;
+		pinctrl-0 = <&mclk0_active>;
+		pinctrl-names = "default";
+		orientation = <1>;
+		rotation = <90>;
+
+		port {
+			camera_ov13b10_ep: endpoint {
+				bus-type = <MEDIA_BUS_TYPE_CSI2_DPHY>;
+				data-lanes = <1 2 3 4>;
+				link-frequencies = /bits/ 64 <560000000>;
+				remote-endpoint = <&csiphy1_ep>;
+			};
+		};
+	};
+};
+
+&cci1 {
+	status = "okay";
+};
+
+&cci1_i2c1 {
+	camera_front: camera@20 {
+		compatible = "hynix,hi846";
+		reg = <0x20>;
+		vddio-supply = <&vreg_l1c_1p8>;
+		vdda-supply = <&camera_front_vana>;
+		vddd-supply = <&vreg_l2c_1p2>;
+		clocks = <&camcc CAM_CC_MCLK3_CLK>;
+		assigned-clocks = <&camcc CAM_CC_MCLK3_CLK>;
+		assigned-clock-rates = <19200000>;
+		reset-gpios = <&tlmm 109 GPIO_ACTIVE_LOW>;
+		pinctrl-0 = <&camera_front_active>;
+		pinctrl-1 = <&camera_front_sleep>;
+		pinctrl-names = "default", "sleep";
+		orientation = <0>;
+		/* Meet: 270 inverted, 90 clockwise, 0 upside-down → 180 upright. */
+		rotation = <180>;
+
+		port {
+			camera_hi846_ep: endpoint {
+				bus-type = <MEDIA_BUS_TYPE_CSI2_DPHY>;
+				data-lanes = <1 2>;
+				link-frequencies = /bits/ 64 <144000000 288000000 360000000 576000000 720000000>;
+				remote-endpoint = <&csiphy4_ep>;
+			};
+		};
+	};
+};
+
+&tlmm {
+	mclk0_active: mclk0-active-state {
+		pins = "gpio94";
+		function = "cam_mclk";
+		bias-disable;
+		drive-strength = <2>;
+	};
+
+	camera_front_active: camera-front-active-state {
+		mclk-pins {
+			pins = "gpio97";
+			function = "cam_mclk";
+			bias-disable;
+			drive-strength = <4>;
+		};
+
+		reset-pins {
+			pins = "gpio109";
+			function = "gpio";
+			bias-disable;
+			drive-strength = <2>;
+		};
+	};
+
+	camera_front_sleep: camera-front-sleep-state {
+		mclk-pins {
+			pins = "gpio97";
+			function = "cam_mclk";
+			bias-pull-down;
+			drive-strength = <4>;
+		};
+
+		reset-pins {
+			pins = "gpio109";
+			function = "gpio";
+			bias-pull-down;
+			drive-strength = <2>;
+			output-low;
+		};
+	};
+};

@@ -123,7 +123,7 @@ make_image() {
     echo "## Making image $image_name"
     echo '### Cleaning up'
     rm -rf $mkosi_rootfs/var/cache/dnf/*
-    rm -rf "$image_dir/$image_name/*"
+    rm -rf "${image_dir:?}/${image_name:?}/"*
 
     ############# create root.img #############
     echo '### Calculating root image size'
@@ -211,6 +211,11 @@ make_image() {
     arch-chroot $image_mnt chsh -s /bin/fish user
     arch-chroot $image_mnt chmod +x /home/user/post-install
     arch-chroot $image_mnt chmod +x /home/user/niri-install
+
+    echo "### Installing dualboot helpers"
+    install -D -m 0755 scripts/repartition-dualboot.sh "$image_mnt/usr/local/sbin/pipa-repartition-dualboot"
+    install -D -m 0755 scripts/pipa-switch-slot "$image_mnt/usr/local/bin/pipa-switch-slot"
+    install -D -m 0644 DUALBOOT.md "$image_mnt/usr/share/doc/pipa-fedora/DUALBOOT.md"
     
     # echo "### SElinux labeling filesystem"
     # arch-chroot $image_mnt setfiles -F -p -c /etc/selinux/targeted/policy/policy.* -e /proc -e /sys -e /dev /etc/selinux/targeted/contexts/files/file_contexts /
