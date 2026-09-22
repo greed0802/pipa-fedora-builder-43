@@ -16,8 +16,12 @@ writes Fedora’s `boot.img` the same way `dnf` does.
 ```bash
 sudo dnf install -y git
 cd ~
-git clone --depth 1 --branch pipa/7.1 https://github.com/PipaDB/linux.git linux-pipa-71
-# Makefile must say VERSION=7 PATCHLEVEL=1  (not 7.0)
+rm -rf ~/linux-pipa-71
+mkdir ~/linux-pipa-71 && git -C ~/linux-pipa-71 init
+git -C ~/linux-pipa-71 remote add origin https://github.com/PipaDB/linux.git
+git -C ~/linux-pipa-71 fetch --depth 1 origin 8205db9b0e34f9be5064c9244cc5ad94c4aca9a6
+git -C ~/linux-pipa-71 checkout FETCH_HEAD
+# Makefile: VERSION=7 PATCHLEVEL=1 SUBLEVEL=7  (not 7.0.8, not 7.1.0)
 git clone --depth 1 -b arena/01a0bd69-pipa-fedora-builder-43 \
   https://github.com/greed0802/pipa-fedora-builder-43.git
 cd pipa-fedora-builder-43
