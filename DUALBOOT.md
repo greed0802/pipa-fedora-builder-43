@@ -67,7 +67,7 @@ matters on postmarketOS (`pmbootstrap init`). This Fedora `boot.img` /
 On the tablet (Termux, Magisk `su`):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/greed0802/pipa-fedora-builder-43/arena/01a0bd69-pipa-fedora-builder-43/scripts/termux-check.sh | su -c sh
+curl -fsSL https://raw.githubusercontent.com/rr1111/pipa-fedora-builder-43/main/scripts/termux-check.sh | su -c sh
 ```
 
 1. Fastboot (Power + Volume Down).
@@ -319,7 +319,9 @@ These are device quirks from the same wiki; they apply on Fedora too:
 - **HDMI/DP:** unplug the monitor from power before plugging the cable in.
 - **Speakers:** AW88261 on tertiary TDM; a right-channel-only test tone can
   be silent even when the left speaker works.
-- **Rear camera** may work poorly; **front camera** does not.
+- **Cameras:** stock COPR has no sensors. Patched 7.1.7 (`CAMERA.md`) lists
+  both; Meet at ~720p; do not switch front/rear in-call. Front HI846 DT
+  `rotation = <180>`.
 
 ## Why not TheMojoMan EFI multiboot (`pipa_dualrole.img`)?
 

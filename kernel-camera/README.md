@@ -22,10 +22,13 @@ the VCM node, only `regulator-always-on` on L7.
 
 Do not `make ARCH=arm64` on WSL x86_64. Steps: [CAMERA.md](../CAMERA.md).
 
+Clone pipadb **`8205db9`** (Linux **7.1.7**). Default pipadb clone is 7.0.8;
+branch `pipa/7.1` is 7.1.0 (cameras, no PCM). HI846 `rotation = <180>`.
+
 ```bash
 # on the Pad
-~/pipa-fedora-builder-43/scripts/patch-kernel-pipa-cameras.sh ~/linux-pipa
-sudo ~/pipa-fedora-builder-43/scripts/build-install-camera-kernel.sh ~/linux-pipa
+~/pipa-fedora-builder-43/scripts/patch-kernel-pipa-cameras.sh ~/linux-pipa-71
+sudo ~/pipa-fedora-builder-43/scripts/build-install-camera-kernel.sh ~/linux-pipa-71
 ```
 
 ## After install on the Pad

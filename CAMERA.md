@@ -1,93 +1,141 @@
 # Cameras on pipa Fedora
 
-`cam --list` showing **No sensor found** with many `/dev/video*` nodes is expected
-on stock `kernel-pipa`. Those nodes are CAMSS ISP + Iris, not OV13B10 / HI846.
+Stock COPR `kernel-pipa` exposes CAMSS / Iris `/dev/video*` nodes but **no
+sensors**. `cam --list` → `No sensor found` is expected until the board DTS
+binds OV13B10 (rear) and HI846 (front).
 
-## Install the patched kernel (on the Pad, not WSL)
+Do **not** flash ArchPad `linux-archpad-pipa` onto Fedora. Different initramfs
+and boot.img path; that is how display/audio/slots break.
 
-WSL only **patched source**. `make ARCH=arm64` on the laptop builds the wrong
-arch. Compile and `kernel-install` on the tablet so `pipa-kernel-flasher-hook`
-writes Fedora’s `boot.img` the same way `dnf` does.
+## What actually works (tested on Pad 6, Fedora 44, slot B)
 
-### 1. On the Pad (Konsole, Wi‑Fi)
+| Kernel | Sensors | Speakers |
+| --- | --- | --- |
+| COPR `kernel-pipa` **7.1.2-2** | no | yes |
+| pipadb branch **`pipa/7.1`** (= **7.1.0**) | yes | **no** (`/dev/snd` = `timer` only, Dummy Output) |
+| pipadb commit **`8205db9`** (**7.1.7**) + this `kernel-camera/` | **ov13b10 + hi846** | **yes** (after ADSP firmware is in the initramfs) |
 
-**Do not** `git clone --depth 1` pipadb default branch — that is **7.0.8** and boots as `7.0.8-pipa-cam+` with no `/dev/snd` PCM (Dummy Output). Use a **7.1** tree matching `kernel-pipa`:
+HI846 `rotation` in `kernel-camera/sm8250-xiaomi-pipa-camera.dtsi` (Meet, pad in
+landscape): **270** inverted, **90** clockwise, **0** upside-down, **180**
+upright. Rear OV13B10 stays **90**.
+
+## Build on the Pad (not WSL)
+
+`make ARCH=arm64` on an x86_64 laptop produces the wrong Image. Compile and
+`kernel-install` on the tablet so `pipa-kernel-flasher-hook` writes `boot.img`
+the same way `dnf` does.
 
 ```bash
 sudo dnf install -y git
-cd ~
-rm -rf ~/linux-pipa-71
-mkdir ~/linux-pipa-71 && git -C ~/linux-pipa-71 init
+# Do not: git clone --depth 1 pipadb/linux  (default = 7.0.8, kills PCM)
+# Do not: git clone --branch pipa/7.1       (that is 7.1.0, cameras, no PCM)
+mkdir -p ~/linux-pipa-71
+git -C ~/linux-pipa-71 init
 git -C ~/linux-pipa-71 remote add origin https://github.com/PipaDB/linux.git
 git -C ~/linux-pipa-71 fetch --depth 1 origin 8205db9b0e34f9be5064c9244cc5ad94c4aca9a6
 git -C ~/linux-pipa-71 checkout FETCH_HEAD
-# Makefile: VERSION=7 PATCHLEVEL=1 SUBLEVEL=7  (not 7.0.8, not 7.1.0)
-git clone --depth 1 -b arena/01a0bd69-pipa-fedora-builder-43 \
-  https://github.com/greed0802/pipa-fedora-builder-43.git
+# Makefile must read VERSION=7 PATCHLEVEL=1 SUBLEVEL=7
+
+git clone --depth 1 https://github.com/rr1111/pipa-fedora-builder-43.git
 cd pipa-fedora-builder-43
 ./scripts/patch-kernel-pipa-cameras.sh ~/linux-pipa-71
 sudo ./scripts/build-install-camera-kernel.sh ~/linux-pipa-71
 ```
 
-That takes **30–90 minutes**. It saves `~/boot-linux-backup.img` first.
+30–90 minutes. The install script saves `~/boot-linux-backup.img` first.
 
-Do **not** reuse `~/linux-pipa` if `head Makefile` is 7.0. That tree is `7.0.8-pipa-cam+`.
+If `~/linux-pipa-71` is root-owned from a previous `sudo` build, later `make dtbs`
+fails with `Permission denied` on `include/config/kernel.release`. Use
+`sudo make EXTRAVERSION=-pipa-cam dtbs` or `sudo rm -rf ~/linux-pipa-71` and
+clone again.
 
-### 2. Reboot, still Fedora slot B
+## ADSP / Dummy Output
 
-```bash
-cam --list
-dmesg | grep -iE 'ov13|hi846|cci'
+`adsp.mbn` lives on the rootfs:
+
+`/usr/lib/firmware/qcom/sm8250/xiaomi/pipa/adsp.mbn`
+
+A custom `7.1.7-pipa-cam+` initramfs often **omits** it. Then:
+
+```
+remoteproc2: Direct firmware load for qcom/sm8250/xiaomi/pipa/adsp.mbn failed with error -2
 ```
 
-Expect:
+`/dev/snd` is `timer` only → PipeWire Dummy Output. The four AW88261 amps still
+probe. After the rootfs is mounted you can start ADSP by hand:
+
+```bash
+# already offline → echo stop is EINVAL; just start
+sudo sh -c 'echo start > /sys/class/remoteproc/remoteproc2/state'
+ls /dev/snd   # expect controlC0 pcmC0D*
+systemctl --user restart pipewire.socket pipewire pipewire-pulse wireplumber
+wpctl status  # Built-in Audio Speaker, not Dummy
+```
+
+So it survives reboot, put firmware in the initramfs **before** the next
+`kernel-install`:
+
+```bash
+echo 'install_items+=" /usr/lib/firmware/qcom/sm8250/xiaomi/pipa/* "' \
+  | sudo tee /etc/dracut.conf.d/pipa-adsp.conf
+sudo dracut -f --kver "$(uname -r)"
+sudo kernel-install add "$(uname -r)" /usr/lib/modules/"$(uname -r)"/vmlinuz
+```
+
+Do **not** `dnf upgrade kernel-pipa` after this — COPR would replace the camera
+kernel. Upstream hope: merge this DTS into `kernel-pipa` so `dnf` is enough.
+
+## After reboot
+
+```bash
+uname -r   # 7.1.7-pipa-cam+
+cam --list
+```
 
 ```
 Available cameras:
-1: Internal back camera (.../camera@10)
-2: Internal front camera (.../camera@20)
+1: Internal front camera (.../cci@ac50000/i2c-bus@1/camera@20)   # hi846
+2: Internal back camera  (.../cci@ac4f000/i2c-bus@0/camera@10)   # ov13b10
 ```
 
-Rectangle/IPA-helper warnings are normal. Fedora’s `libcamera-tools` has `cam`, not `qcam`:
+Rectangle / IPA-helper warnings are noise.
 
 ```bash
-sudo dnf install -y libcamera-qcam libcamera-gstreamer gstreamer1-plugins-good
-systemctl --user restart pipewire pipewire-pulse wireplumber
-# qcam defaults to max Bayer (4208×3120 / 1632×1224) and dies with
-# "dma-heap allocation failure". Force 720p:
+# qcam always picks max Bayer (rear 4208×3120) and dies:
+#   Failed to allocate capture buffers (dma-heap)
+# CmaTotal 128 MiB is still too small for 13 MP. Use 720p:
 cam -c 1 -s width=1280,height=720,role=viewfinder --capture=5 -F /tmp/back-#.ppm
-cam -c 2 -s width=1280,height=720,role=viewfinder --capture=5 -F /tmp/front-#.ppm
-xdg-open /tmp/back-000000.ppm
-
-# audio/cameras gone after a bad recover:
-systemctl --user start pipewire.socket pipewire pipewire-pulse wireplumber
-pactl list short sinks
 ```
 
-Meet / Messenger / Firefox: **Internal front camera** or **Internal back camera**. Never Iris / random `videoN`.
+Meet / Firefox: **Built-in Back Camera** or **Built-in Front Camera** (libcamera).
+Never Iris, never a raw `videoN`.
 
-**Do not switch cameras mid-call.** CAMSS can stream one sensor. Opening HI846 while OV13B10 is live hangs the ISP and **both** cameras die.
+**Do not switch cameras in-call.** CAMSS is one pipeline. Opening HI846 while
+OV13B10 is streaming hangs the ISP; both cameras die until reboot (or
+`modprobe -r` if the modules are not busy). Leave the call, pick **one** camera
+in site settings, join again.
 
-Never run `sudo systemctl --user …` — that stops **root’s** empty session and leaves **your** PipeWire (speakers + mics) dead, while `qcom_camss` stays busy.
+Never `sudo systemctl --user …` — that talks to **root’s** empty session and
+kills **your** PipeWire (speakers).
 
-Fastest recover: **reboot**.
-
-Or, as `user` (sudo only on modprobe):
+DTB-only rotation change (tree already patched):
 
 ```bash
-systemctl --user stop wireplumber pipewire-pulse pipewire
-sudo modprobe -r hi846 ov13b10 qcom_camss
-sudo modprobe qcom_camss ov13b10 hi846
-systemctl --user start pipewire pipewire-pulse wireplumber
+sudo make -C ~/linux-pipa-71 EXTRAVERSION=-pipa-cam dtbs
+sudo cp ~/linux-pipa-71/arch/arm64/boot/dts/qcom/sm8250-xiaomi-pipa.dtb \
+  /usr/lib/modules/"$(uname -r)"/devicetree
+sudo kernel-install add "$(uname -r)" /usr/lib/modules/"$(uname -r)"/vmlinuz
 ```
 
-If `qcom_camss is in use`, reboot. Then start a **new** Meet tab with the camera already chosen.
+Confirm live DT (fish: no `while read`):
 
-Then start a **new** Meet tab with the camera you want already chosen (site settings), not the in-call switcher.
+```bash
+find /sys/firmware/devicetree/base -name rotation -print -exec xxd {} \;
+# camera@10 (rear)  0000 005a  = 90
+# camera@20 (front) 0000 00b4  = 180
+```
 
-If the plugin was installed after login, log out once so PipeWire reloads `pipewire-plugin-libcamera`.
-
-### 3. If the panel stays black
+## Black screen after a bad kernel
 
 PC + WSL/`usbipd` (not Windows `fastboot` for this):
 
@@ -97,18 +145,17 @@ fastboot erase dtbo_b
 fastboot set_active b
 ```
 
-Copy `boot-linux-backup.img` off the Pad **before** you reboot into a bad kernel
-(KDE, USB stick, or `scp`).
+Copy `boot-linux-backup.img` off the Pad **before** you reboot into a kernel
+you have not tried.
 
-Do **not** `dnf upgrade kernel-pipa` after this — COPR would replace the camera
-kernel. Do **not** flash `linux-archpad-pipa`.
+## This directory
 
-Userspace IPA files (for a future image rebuild):
-`mkosi.extra/usr/share/libcamera/ipa/simple/{ov13b10,hi846}.yaml`.
-On the running Pad, copy them if missing:
+| Path | Role |
+| --- | --- |
+| `kernel-camera/sm8250-xiaomi-pipa-camera.dtsi` | OV13B10 + HI846 bind, GPIOs from ArchPad / Xiaomi `pipa-t-oss` |
+| `kernel-camera/patches/0001–0009` | ov13b10 OF + hi846 bring-up (ArchPad) |
+| `kernel-camera/config.fragment` | `VIDEO_{OV13B10,HI846,QCOM_CAMSS}`, CMA 128 MiB |
+| `scripts/patch-kernel-pipa-cameras.sh` | apply onto a pipadb 7.1.2+ tree |
+| `scripts/build-install-camera-kernel.sh` | Pad-side `make` + `kernel-install` |
 
-```bash
-sudo mkdir -p /usr/share/libcamera/ipa/simple
-sudo cp ~/pipa-fedora-builder-43/mkosi.extra/usr/share/libcamera/ipa/simple/*.yaml \
-  /usr/share/libcamera/ipa/simple/
-```
+Userspace IPA stubs (optional): `mkosi.extra/usr/share/libcamera/ipa/simple/{ov13b10,hi846}.yaml`.
