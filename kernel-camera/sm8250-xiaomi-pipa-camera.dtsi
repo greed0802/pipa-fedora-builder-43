@@ -113,8 +113,8 @@
 		pinctrl-1 = <&camera_front_sleep>;
 		pinctrl-names = "default", "sleep";
 		orientation = <0>;
-		/* Meet showed 90° clockwise with <90>; 0 is upright on pipa landscape. */
-		rotation = <0>;
+		/* Meet: 270 inverted, 90 clockwise, 0 upside-down → 180 upright. */
+		rotation = <180>;
 
 		port {
 			camera_hi846_ep: endpoint {
