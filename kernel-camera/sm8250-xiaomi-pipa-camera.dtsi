@@ -113,8 +113,8 @@
 		pinctrl-1 = <&camera_front_sleep>;
 		pinctrl-names = "default", "sleep";
 		orientation = <0>;
-		/* 270 was upside-down in qcam/Meet; 90 matches rear + ArchPad 0028. */
-		rotation = <90>;
+		/* Meet showed 90° clockwise with <90>; 0 is upright on pipa landscape. */
+		rotation = <0>;
 
 		port {
 			camera_hi846_ep: endpoint {
