@@ -50,3 +50,4 @@ DESTDIR=%{buildroot} ninja -C build install
 %{_prefix}/lib/systemd/system/iio-sensor-proxy.service
 %{_udevrulesdir}/80-iio-sensor-proxy.rules
 %{_datadir}/dbus-1/system.d/*
+%{_datadir}/polkit-1/actions/*.policy

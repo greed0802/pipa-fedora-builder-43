@@ -58,19 +58,29 @@ grep -q "version: '3.9" "$TREE/meson.build" || {
 
 echo "==> apply SSC fix series"
 apply_one() {
-	local p=$1
+	local p=$1 base sig
+	base=$(basename "$p")
 	if git -C "$TREE" apply --check "$p" >/dev/null 2>&1; then
 		git -C "$TREE" apply "$p"
-		echo "applied $(basename "$p")"
+		echo "applied $base"
 	elif git -C "$TREE" apply --reverse --check "$p" >/dev/null 2>&1; then
-		echo "already applied $(basename "$p")"
+		echo "already applied $base"
 	elif patch -d "$TREE" -p1 -R --dry-run -s -i "$p" >/dev/null 2>&1; then
-		echo "already applied (patch) $(basename "$p")"
+		echo "already applied $base"
 	elif patch -d "$TREE" -p1 -N --dry-run -i "$p" >/dev/null 2>&1; then
 		patch -d "$TREE" -p1 -N -i "$p"
-		echo "applied (patch) $(basename "$p")"
+		echo "applied $base"
 	else
-		echo "SKIP (does not apply): $(basename "$p")" >&2
+		# Patches whose hunks overlap later ones (0002/0003 vs 0004) cannot be
+		# reverse-detected. Verify by content instead: every patch adds at
+		# least one distinctive line — if it is already present in the tree,
+		# treat the patch as applied.
+		sig=$(grep '^+[^+]' "$p" | head -1 | cut -c2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+		if [ -n "$sig" ] && grep -rFq -- "$sig" "$TREE/src"; then
+			echo "already applied (verified by content) $base"
+		else
+			echo "SKIP (does not apply): $base" >&2
+		fi
 	fi
 }
 for p in "$PATCHDIR"/000{2,3,4,5}-*.patch; do
@@ -91,6 +101,8 @@ mkdir -p ~/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
 rm -rf ~/rpmbuild/BUILD/iio-sensor-proxy-3.9
 tar -C "$(dirname "$TREE")" \
 	--transform "s,^$(basename "$TREE"),iio-sensor-proxy-3.9," \
+	--exclude="$(basename "$TREE")/.git" \
+	--exclude="$(basename "$TREE")/build" \
 	-czf ~/rpmbuild/SOURCES/iio-sensor-proxy-3.9.tar.gz "$(basename "$TREE")"
 rpmbuild -ba --without=check "$SPEC"
 
