@@ -144,9 +144,13 @@ monitor-sensor            # live D-Bus readings while tilting / covering the ALS
   check the journal for `temp.json`/registry errors, verify
   `/usr/share/qcom/sm8250/Xiaomi/pipa/sensors/registry` exists
   (`xiaomi-pipa-firmware` installed).
-* Accel ready but `HasAccelerometer=false` → the proxy started before the DSP
-  was ready; `sudo systemctl restart iio-sensor-proxy` (report it — the gate
-  should prevent this).
+* Accel ready (`ssccli` works) but `HasAccelerometer=false` → a proxy that
+  predates the tunnel never re-scans; `sudo systemctl restart iio-sensor-proxy`.
+  The gate prevents this for starts after the tunnel is up.
+* `hexagonrpcd` journal: `Tried to open .../temp.json for writing` repeatedly →
+  cosmetic: the DSP wants to refresh its scratch file but hexagonfs serves the
+  mapped registry read-only. Harmless (accelerometer still works); ArchPad
+  suppresses the spam in their hexagonrpc fork — see the COPR backlog.
 
 ## Known limitations
 

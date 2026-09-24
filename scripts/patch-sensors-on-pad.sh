@@ -88,7 +88,14 @@ else
 fi
 
 systemctl enable --now pipa-sensors-persist.service hexagonrpcd-sdsp.service pipa-sensor-resume.service
-systemctl enable --now iio-sensor-proxy.service
+
+# The proxy must be (re)started LAST and for real: an instance that predates
+# the tunnel/packages never re-scans ("'registry' sensor unavailable, is
+# hexagonrpcd running?" in its journal), and a mere `enable --now` on an
+# already-active unit is a no-op — the ExecStartPre gate only runs on actual
+# starts. Restarting also re-announces the D-Bus name so the desktop re-claims.
+systemctl enable iio-sensor-proxy.service
+systemctl restart iio-sensor-proxy.service
 
 echo
 echo "==> verify"

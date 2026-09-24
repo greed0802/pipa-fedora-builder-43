@@ -109,7 +109,7 @@ if command -v busctl >/dev/null 2>&1; then
 	ha=$(busctl get-property net.hadess.SensorProxy /net/hadess/SensorProxy net.hadess.SensorProxy HasAccelerometer 2>/dev/null || true)
 	case "$ha" in
 		b*true*)  ok "SensorProxy reports HasAccelerometer=true" ;;
-		b*false*) bad "SensorProxy running but HasAccelerometer=false — proxy restarted before DSP was ready" ;;
+		b*false*) bad "SensorProxy running but HasAccelerometer=false — usually a proxy that predates the DSP tunnel: sudo systemctl restart iio-sensor-proxy" ;;
 		*)        warn "SensorProxy not on D-Bus (iio-sensor-proxy not running?)" ;;
 	esac
 fi
