@@ -82,11 +82,17 @@ for u in pipa-sensors-persist.service hexagonrpcd-sdsp.service iio-sensor-proxy.
 	st=$(systemctl is-active "$u" 2>/dev/null || true)
 	en=$(systemctl is-enabled "$u" 2>/dev/null || true)
 	case "$st" in
-		active)   ok "$u active (enabled=$en)" ;;
-		inactive) [ "$u" = iio-sensor-proxy.service ] \
-			&& warn "$u inactive (normal while suspended or before first claim; enabled=$en)" \
-			|| bad "$u inactive (enabled=$en)" ;;
-		*)        bad "$u state: $st (enabled=$en)" ;;
+		active) ok "$u active (enabled=$en)" ;;
+		inactive)
+			case "$u" in
+				iio-sensor-proxy.service)
+					warn "$u inactive (normal while suspended or before first claim; enabled=$en)" ;;
+				pipa-sensor-resume.service)
+					ok "$u inactive (oneshot — runs only after a suspend/resume cycle; enabled=$en)" ;;
+				*)
+					bad "$u inactive (enabled=$en)" ;;
+			esac ;;
+		*) bad "$u state: $st (enabled=$en)" ;;
 	esac
 done
 if systemctl is-enabled pipa-sensor-restart.service >/dev/null 2>&1 || [ -x /usr/lib/systemd/system-sleep/pipa-sensor-restart ]; then

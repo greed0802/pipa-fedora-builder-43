@@ -72,11 +72,20 @@ apply_one() {
 		echo "applied $base"
 	else
 		# Patches whose hunks overlap later ones (0002/0003 vs 0004) cannot be
-		# reverse-detected. Verify by content instead: every patch adds at
-		# least one distinctive line — if it is already present in the tree,
-		# treat the patch as applied.
-		sig=$(grep '^+[^+]' "$p" | head -1 | cut -c2- | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-		if [ -n "$sig" ] && grep -rFq -- "$sig" "$TREE/src"; then
+		# reverse-detected, and later patches may rewrite earlier lines. Verify
+		# by content instead: if ANY of the patch's added lines is already
+		# present in the tree, treat the patch as applied.
+		applied=0
+		while IFS= read -r sig; do
+			sig=${sig#+}
+			if [ -n "$sig" ] && grep -rFq -- "$sig" "$TREE/src"; then
+				applied=1
+				break
+			fi
+		done <<EOF
+$(grep '^+[^+]' "$p" | head -8)
+EOF
+		if [ "$applied" -eq 1 ]; then
 			echo "already applied (verified by content) $base"
 		else
 			echo "SKIP (does not apply): $base" >&2

@@ -141,13 +141,16 @@ monitor-sensor            # live D-Bus readings while tilting / covering the ALS
   `81-libssc-xiaomi-pipa.rules` (candidates: `-1,0,0;0,-1,0;0,0,-1`,
   `-1,0,0;0,-1,0;0,0,1`), then `sudo udevadm control --reload && sudo
   udevadm trigger /dev/fastrpc-sdsp && sudo systemctl restart iio-sensor-proxy`.
-* `monitor-sensor` shows "Accelerometer appeared" but orientation stays
-  `undefined` → the unpatched 3.9 coldplug race: a client claiming *during*
-  discovery is recorded but polling never starts. Test/avoid by claiming
-  after discovery: `sudo systemctl restart iio-sensor-proxy; sleep 20;
-  monitor-sensor`, then tilt. If the DE is affected (rotation dead at login
-  despite everything else passing), ship the iio-sensor-proxy patch series
-  from the COPR backlog — it fixes exactly this.
+* `monitor-sensor` shows "Accelerometer appeared" but orientation never
+  changes → unpatched iio-sensor-proxy 3.9 claims but never *delivers*: the
+  probe `close()` during discovery breaks the later open and the close
+  signal-handler kills measurement delivery. Confirmed live on the Pad and
+  fixed by the vendored series — build it:
+  `sudo ./scripts/build-install-iio-sensor-proxy.sh` (see section above).
+* Journal line `Mount matrix provided by firmware is all 0, falling back to
+  identity matrix!` (from libssc, twice at start) is noise: the proxy's SSC
+  driver reads the matrix from the udev property (our rule), not from the
+  firmware attribute.
 * `hexagonrpcd-sdsp` restart-loops → the DSP refuses the filesystem view;
   check the journal for `temp.json`/registry errors, verify
   `/usr/share/qcom/sm8250/Xiaomi/pipa/sensors/registry` exists
@@ -166,9 +169,8 @@ monitor-sensor            # live D-Bus readings while tilting / covering the ALS
   a pipa one); compass apps will not work. pipa has **no proximity hardware**
   at all (registry = BMI3x0 + AK0991x only), so `monitor-sensor` showing
   proximity (and compass) appear/disappear is normal churn, not a fault.
-* Unpatched iio-sensor-proxy 3.9 has the coldplug claim race described above;
-  harmless once clients claim after discovery (desktops normally do — the
-  proxy is gated to start only when the DSP already answers).
+* Unpatched iio-sensor-proxy 3.9 claims sensors but delivers no measurements
+  (fixed by the vendored series above — the stock COPR build is affected).
 * If the desktop was started while no SensorProxy existed and never re-claims,
   rotation stays dead until it is restarted — same edge case the liuqin tree
   works around with a post-graphical re-announce. Not needed on pipa today.
