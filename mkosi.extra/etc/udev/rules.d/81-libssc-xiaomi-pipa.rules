@@ -12,14 +12,18 @@
 # per-device — the SSC accelerometer open can block on some devices, so
 # upstream keeps it behind an explicit tag (see liuqin/ArchPad).
 #
-# ssc-accel = auto-rotation (BMI3x0 IMU), ssc-proximity is optional and only
-# claimed if the sensor firmware actually exposes one.
+# ssc-accel = auto-rotation (BMI3x0 IMU). Deliberately NOT tagging
+# ssc-proximity: pipa has no proximity hardware (the firmware registry only
+# carries bmi3x0 + ak0991x), and a bogus tag makes the proxy claim and drop a
+# nonexistent sensor on every start (the "--- Proximity sensor disappeared"
+# churn in monitor-sensor). ssc-light/ssc-compass stay as upstream's
+# 80-iio-sensor-proxy.rules sets them.
 
 # Bind the sensor-DSP FastRPC tunnel to the device: whenever
 # /dev/fastrpc-sdsp exists, hexagonrpcd-sdsp is started via systemd.
 SUBSYSTEM=="misc", KERNEL=="fastrpc-sdsp", TAG+="systemd", \
   ENV{SYSTEMD_WANTS}+="hexagonrpcd-sdsp.service", \
-  ENV{IIO_SENSOR_PROXY_TYPE}+="ssc-accel ssc-proximity", \
+  ENV{IIO_SENSOR_PROXY_TYPE}+="ssc-accel", \
   ENV{ACCEL_MOUNT_MATRIX}="-1, 0, 0; 0, -1, 0; 0, 0, -1"
 
 # ACCEL_MOUNT_MATRIX notes (landscape-first panel, tested by ArchPad on pipa):

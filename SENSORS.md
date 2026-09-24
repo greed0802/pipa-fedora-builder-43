@@ -34,7 +34,7 @@ BMI3x0/AK0991x ── SLPI firmware (slpi.mbn, sensor "SensorPD")
         hexagonrpcd-sdsp.service   (serves the DSP its filesystem view)
                      │  SSC protocol (QMI over QRTR)
                      ▼
-        libssc ── iio-sensor-proxy (ssc-accel / ssc-light / ssc-proximity)
+        libssc ── iio-sensor-proxy (ssc-accel; ssc-light/ssc-compass from upstream rules)
                      ▼
         net.hadess.SensorProxy D-Bus → GNOME/KDE auto-rotation, auto-brightness
 ```
@@ -48,7 +48,7 @@ exposed by iio-sensor-proxy; nothing consumes them on a desktop today.
 
 | # | Problem | Effect | Fix shipped here |
 | - | ------- | ------ | ---------------- |
-| 1 | COPR `pipa-sensors` udev rule never sets `IIO_SENSOR_PROXY_TYPE=ssc-accel`. Upstream `80-iio-sensor-proxy.rules` only auto-tags `ssc-light ssc-compass` on fastrpc devices — the accelerometer must be opted in per device (its open can block; see liuqin/ArchPad). | Accelerometer never claimed → **no auto-rotation at all**; only light/compass worked | `mkosi.extra/etc/udev/rules.d/81-libssc-xiaomi-pipa.rules` (shadows the package rule), tags `ssc-accel ssc-proximity` + mount matrix + `SYSTEMD_WANTS` for the DSP tunnel |
+| 1 | COPR `pipa-sensors` udev rule never sets `IIO_SENSOR_PROXY_TYPE=ssc-accel`. Upstream `80-iio-sensor-proxy.rules` only auto-tags `ssc-light ssc-compass` on fastrpc devices — the accelerometer must be opted in per device (its open can block; see liuqin/ArchPad). | Accelerometer never claimed → **no auto-rotation at all**; only light/compass worked | `mkosi.extra/etc/udev/rules.d/81-libssc-xiaomi-pipa.rules` (shadows the package rule), tags `ssc-accel` + mount matrix + `SYSTEMD_WANTS` for the DSP tunnel |
 | 2 | The SLPI SensorPD expects its calibration registry at the Android path `/mnt/vendor/persist/sensors/...` and writes scratch files there. Fedora has no such dir. | DSP rebuilds its registry every boot (slow first sample, `temp.json` write spam in the journal), calibration lost | `pipa-sensors-persist.service` + `pipa-prepare-sensor-persist`: recreate the path in the rootfs, seed it from the pre-generated registry in `xiaomi-pipa-firmware` (BMI3x0/AK0991x cal data), own it by the `fastrpc` user |
 | 3 | `pipa-sensor-restart` RPM: after every resume blindly `sleep 2`, restart proxy → daemon → proxy. | 10–15 s downtime, races the DSP, "might not always work" | Deterministic systemd flow (below); the old hook is neutralized by an overlay stub |
 | 4 | Proxy left polling while the SoC suspends → in-flight QMI reads hang the proxy / tear the DSP session. | Sensors dead after suspend until services restarted | `iio-sensor-proxy` is **conflict-stopped before sleep** (`Conflicts=suspend.target`), rebuilt after resume by `pipa-sensor-resume.service` |
@@ -83,7 +83,7 @@ re-appears; if rotation is dead right after a resume, toggle rotation once or
 | Path | Role |
 | ---- | ---- |
 | `scripts/patch-sensors-on-pad.sh` | apply all of the below onto a running install (no image rebuild) |
-| `etc/udev/rules.d/81-libssc-xiaomi-pipa.rules` | shadows the COPR rule; `ssc-accel ssc-proximity` + mount matrix + `SYSTEMD_WANTS=hexagonrpcd-sdsp` |
+| `etc/udev/rules.d/81-libssc-xiaomi-pipa.rules` | shadows the COPR rule; `ssc-accel` + mount matrix + `SYSTEMD_WANTS=hexagonrpcd-sdsp` |
 | `usr/lib/systemd/system/pipa-sensors-persist.service` | oneshot: persist layout + registry seed |
 | `usr/lib/systemd/system/pipa-sensor-resume.service` | post-resume rebuild (WantedBy=suspend.target) |
 | `usr/lib/systemd/system/hexagonrpcd-sdsp.service.d/pipa.conf` | persist ordering + `-R` firmware root |
@@ -140,6 +140,13 @@ monitor-sensor            # live D-Bus readings while tilting / covering the ALS
   `81-libssc-xiaomi-pipa.rules` (candidates: `-1,0,0;0,-1,0;0,0,-1`,
   `-1,0,0;0,-1,0;0,0,1`), then `sudo udevadm control --reload && sudo
   udevadm trigger /dev/fastrpc-sdsp && sudo systemctl restart iio-sensor-proxy`.
+* `monitor-sensor` shows "Accelerometer appeared" but orientation stays
+  `undefined` → the unpatched 3.9 coldplug race: a client claiming *during*
+  discovery is recorded but polling never starts. Test/avoid by claiming
+  after discovery: `sudo systemctl restart iio-sensor-proxy; sleep 20;
+  monitor-sensor`, then tilt. If the DE is affected (rotation dead at login
+  despite everything else passing), ship the iio-sensor-proxy patch series
+  from the COPR backlog — it fixes exactly this.
 * `hexagonrpcd-sdsp` restart-loops → the DSP refuses the filesystem view;
   check the journal for `temp.json`/registry errors, verify
   `/usr/share/qcom/sm8250/Xiaomi/pipa/sensors/registry` exists
@@ -155,7 +162,12 @@ monitor-sensor            # live D-Bus readings while tilting / covering the ALS
 ## Known limitations
 
 * Gyroscope and magnetometer are not exposed (iio-sensor-proxy limitation, not
-  a pipa one); compass apps will not work.
+  a pipa one); compass apps will not work. pipa has **no proximity hardware**
+  at all (registry = BMI3x0 + AK0991x only), so `monitor-sensor` showing
+  proximity (and compass) appear/disappear is normal churn, not a fault.
+* Unpatched iio-sensor-proxy 3.9 has the coldplug claim race described above;
+  harmless once clients claim after discovery (desktops normally do — the
+  proxy is gated to start only when the DSP already answers).
 * If the desktop was started while no SensorProxy existed and never re-claims,
   rotation stays dead until it is restarted — same edge case the liuqin tree
   works around with a post-graphical re-announce. Not needed on pipa today.
@@ -164,7 +176,7 @@ monitor-sensor            # live D-Bus readings while tilting / covering the ALS
 
 ## COPR backlog (upstreamable, not required for the above)
 
-1. `pipa-sensors`: fix the udev rule (tag `ssc-accel ssc-proximity`, scope the
+1. `pipa-sensors`: fix the udev rule (tag `ssc-accel` only — pipa has no proximity hardware — scope the
    matrix to `fastrpc-sdsp`) and ship the persist prep + units — then this
    overlay can shrink to nothing. Sources: pipa-pkgs `pipa-sensors` 1.2.
 2. `iio-sensor-proxy` 3.9: add the patch series from pipa-pkgs/xiaomipad-6pro
