@@ -33,7 +33,7 @@ Provenance and details: SENSORS.md in pipa-fedora-builder-43.
 %setup -q
 
 %build
-meson setup build --prefix %{_prefix} -Dssc-support=enabled -Dtests=false -Dgtk_doc=false
+meson setup . build --prefix %{_prefix} -Dssc-support=enabled -Dtests=false -Dgtk_doc=false
 ninja -C build
 
 %install

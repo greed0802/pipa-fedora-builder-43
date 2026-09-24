@@ -78,7 +78,7 @@ dnf install -y gcc meson ninja-build rpm-build \
 	"pkgconfig(polkit-gobject-1)"
 
 echo "==> build"
-meson setup "$TREE/build" --prefix /usr -Dssc-support=enabled -Dtests=false -Dgtk_doc=false
+meson setup "$TREE" "$TREE/build" --prefix /usr -Dssc-support=enabled -Dtests=false -Dgtk_doc=false
 ninja -C "$TREE/build"
 
 echo "==> rpm"
