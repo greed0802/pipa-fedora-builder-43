@@ -125,6 +125,7 @@ pipa-family implementations.
 | persist registry prep + resume hook design | [thespider2/pipa-pkgs](https://github.com/thespider2/pipa-pkgs) `pipa-sensors` 1.2 (EndeavourOS pipa) |
 | `ssc-accel` per-device udev opt-in + tunnel/`sns_reg_version` mapping | [ArchPad](https://github.com/Sachinmc73/archpad-pipa) `archpad-pipa-device` + `hexagonrpc` patches |
 | suspend lifecycle (`Conflicts=suspend.target` + resume unit), iio-sensor-proxy fix series | [yzddmr6/xiaomipad-6pro-mainline](https://github.com/yzddmr6/xiaomipad-6pro-mainline) `device/sensors/` (Pad 6 Pro / liuqin), [terrapkg](https://github.com/terrapkg/packages) `0004-bring-hexagonrpcd-back-after-resume.patch` |
+| iio-sensor-proxy SSC patches (vendored, see above) | [thespider2/pipa-pkgs](https://github.com/thespider2/pipa-pkgs) `common/iio-sensor-proxy` 0002–0005 |
 | sensor calibration registry (BMI3x0, AK0991x) | `xiaomi-pipa-firmware` (already installed) |
 | ssccli probe gate | ArchPad `archpad-wait-ssc` |
 
@@ -174,7 +175,28 @@ monitor-sensor            # live D-Bus readings while tilting / covering the ALS
 * First resume after flashing can still be slow if the SLPI does a cold
   registry rebuild; subsequent ones are fast.
 
-## COPR backlog (upstreamable, not required for the above)
+## The iio-sensor-proxy SSC fix series (shipped)
+
+Live testing on the Pad proved the DSP + tunnel fine (`ssccli` gets samples)
+while the unpatched 3.9 proxy never delivers measurements to clients: the
+probe `close()` during discovery breaks the later `open()`, and the close
+signal-handler path kills measurement delivery — ArchPad, the Pad 6 Pro
+mainline tree and EndeavourOS pipa all carry fixes for exactly this.
+
+`userspace-sensors/iio-sensor-proxy/` vendors the series against upstream
+3.9, and `scripts/build-install-iio-sensor-proxy.sh` builds it **on the Pad**
+into `iio-sensor-proxy-3.9-2.pipa` (meson + rpmbuild, ~2 minutes) and
+installs it over the COPR build. Revert:
+
+```bash
+sudo dnf distro-sync iio-sensor-proxy --repo=pocketblue:common
+```
+
+Long term this belongs in the COPR build (backlog item 2 below); the local
+RPM just makes the Pad testable today. A future COPR build with a higher
+release supersedes it naturally.
+
+## COPR backlog (upstreamable)
 
 1. `pipa-sensors`: fix the udev rule (tag `ssc-accel` only — pipa has no proximity hardware — scope the
    matrix to `fastrpc-sdsp`) and ship the persist prep + units — then this

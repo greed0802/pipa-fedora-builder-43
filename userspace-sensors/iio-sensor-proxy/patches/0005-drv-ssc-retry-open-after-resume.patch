@@ -1,0 +1,29 @@
+--- a/src/drv-ssc-accel.c
++++ b/src/drv-ssc-accel.c
+@@ -111,7 +111,21 @@ ssc_accelerometer_set_polling (SensorDevice *sensor_device, gboolean state)
+-		/* Enable sensor */
+-		if (!ssc_sensor_accelerometer_open_sync (drv_data->sensor, NULL, &error)) {
+-			g_warning ("Opening SSC accelerometer sensor failed: %s", (error && error->message) ? error->message : "unknown error");
+-			return;
+-		}
++		/* Enable sensor (retry while FastRPC/SLPI recovers after resume) */
++		{
++			int attempt;
++
++			for (attempt = 0; attempt < 10; attempt++) {
++				g_clear_error (&error);
++				if (ssc_sensor_accelerometer_open_sync (drv_data->sensor, NULL, &error))
++					break;
++				g_warning ("Opening SSC accelerometer sensor failed (attempt %d): %s",
++					   attempt + 1,
++					   (error && error->message) ? error->message : "unknown error");
++				g_usleep (500000);
++			}
++			if (error) {
++				g_warning ("Opening SSC accelerometer sensor failed: %s",
++					   (error && error->message) ? error->message : "unknown error");
++				return;
++			}
++		}
+ 	} else {
+ 		if (!drv_data->measurement_id)

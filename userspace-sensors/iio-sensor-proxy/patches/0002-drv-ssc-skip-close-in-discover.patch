@@ -1,0 +1,149 @@
+diff --git src/drv-ssc-accel.c b/src/drv-ssc-accel.c
+--- a/src/drv-ssc-accel.c	2026-03-02 21:19:51.000000000 +0200
++++ b/src/drv-ssc-accel.c	2026-07-02 02:50:49.525305608 +0300
+@@ -36,14 +36,11 @@
+ 	if (!drv_check_udev_sensor_type (device, "ssc-accel", NULL))
+ 		return FALSE;
+ 
+-	/* Open and close SSC accelerometer for discovering */
++	/* Probe SSC accelerometer for discovering */
+ 	sensor = ssc_sensor_accelerometer_new_sync (NULL, NULL);
+ 	if (!sensor)
+ 		return FALSE;
+ 
+-	if (!ssc_sensor_accelerometer_close_sync (sensor, NULL, NULL))
+-		return FALSE;
+-
+ 	g_debug ("Found SSC accelerometer at %s", g_udev_device_get_sysfs_path (device));
+ 	return TRUE;
+ }
+@@ -136,6 +133,10 @@
+ 	g_autoptr(GError) error = NULL;
+ 	DrvData *drv_data = (DrvData *) sensor_device->priv;
+ 
++	if (drv_data->sensor) {
++		g_clear_signal_handler (&drv_data->measurement_id, drv_data->sensor);
++		ssc_sensor_accelerometer_close_sync (drv_data->sensor, NULL, &error);
++	}
+ 	g_clear_object (&drv_data->sensor);
+ 	g_clear_pointer (&drv_data->mount_matrix, g_free);
+ 	g_clear_pointer (&sensor_device->priv, g_free);
+diff --git src/drv-ssc-compass.c b/src/drv-ssc-compass.c
+--- a/src/drv-ssc-compass.c	2026-03-02 21:19:51.000000000 +0200
++++ b/src/drv-ssc-compass.c	2026-07-02 02:50:49.525365878 +0300
+@@ -32,14 +32,11 @@
+ 	if (!drv_check_udev_sensor_type (device, "ssc-compass", NULL))
+ 		return FALSE;
+ 
+-	/* Open and close SSC compass for discovering */
++	/* Probe SSC compass for discovering */
+ 	sensor = ssc_sensor_compass_new_sync (NULL, NULL);
+ 	if (!sensor)
+ 		return FALSE;
+ 
+-	if (!ssc_sensor_compass_close_sync (sensor, NULL, NULL))
+-		return FALSE;
+-
+ 	g_debug ("Found SSC compass at %s", g_udev_device_get_sysfs_path (device));
+ 	return TRUE;
+ }
+@@ -112,8 +109,14 @@
+ static void
+ ssc_compass_close (SensorDevice *sensor_device)
+ {
++	g_autoptr(GError) error = NULL;
+ 	DrvData *drv_data = (DrvData *) sensor_device->priv;
+ 
++	if (drv_data->sensor) {
++		g_clear_signal_handler (&drv_data->measurement_id, drv_data->sensor);
++		if (!ssc_sensor_compass_close_sync (drv_data->sensor, NULL, &error))
++			g_warning ("Closing SSC compass sensor failed: %s", error->message);
++	}
+ 	g_clear_object (&drv_data->sensor);
+ 	g_clear_pointer (&sensor_device->name, g_free);
+ 	g_clear_pointer (&sensor_device->priv, g_free);
+diff --git src/drv-ssc-light.c b/src/drv-ssc-light.c
+--- a/src/drv-ssc-light.c	2026-03-02 21:19:51.000000000 +0200
++++ b/src/drv-ssc-light.c	2026-07-02 02:50:49.525399375 +0300
+@@ -32,14 +32,11 @@
+ 	if (!drv_check_udev_sensor_type (device, "ssc-light", NULL))
+ 		return FALSE;
+ 
+-	/* Open and close SSC light sensor for discovering */
++	/* Probe SSC light sensor for discovering */
+ 	sensor = ssc_sensor_light_new_sync (NULL, NULL);
+ 	if (!sensor)
+ 		return FALSE;
+ 
+-	if (!ssc_sensor_light_close_sync (sensor, NULL, NULL))
+-		return FALSE;
+-
+ 	g_debug ("Found SSC light at %s", g_udev_device_get_sysfs_path (device));
+ 	return TRUE;
+ }
+@@ -112,6 +109,11 @@
+ 	g_autoptr(GError) error = NULL;
+ 	DrvData *drv_data = (DrvData *) sensor_device->priv;
+ 
++	if (drv_data->sensor) {
++		g_clear_signal_handler (&drv_data->measurement_id, drv_data->sensor);
++		if (!ssc_sensor_light_close_sync (drv_data->sensor, NULL, &error))
++			g_warning ("Closing SSC light sensor failed: %s", error->message);
++	}
+ 	g_clear_object (&drv_data->sensor);
+ 	g_clear_pointer (&sensor_device->priv, g_free);
+ 	g_free (sensor_device);
+diff --git src/drv-ssc-proximity.c b/src/drv-ssc-proximity.c
+--- a/src/drv-ssc-proximity.c	2026-03-02 21:19:51.000000000 +0200
++++ b/src/drv-ssc-proximity.c	2026-07-02 02:50:49.525431247 +0300
+@@ -32,16 +32,11 @@
+ 	if (!drv_check_udev_sensor_type (device, "ssc-proximity", NULL))
+ 		return FALSE;
+ 
+-	/* Open and close SSC proximity sensor for discovering */
++	/* Probe SSC proximity sensor for discovering */
+ 	sensor = ssc_sensor_proximity_new_sync (NULL, NULL);
+ 	if (!sensor)
+ 		return FALSE;
+ 
+-	if (!ssc_sensor_proximity_close_sync (sensor, NULL, NULL)) {
+-		g_clear_object (&sensor);
+-		return FALSE;
+-	}
+-
+ 	g_clear_object (&sensor);
+ 
+ 	g_debug ("Found SSC proximity at %s", g_udev_device_get_sysfs_path (device));
+@@ -112,8 +107,14 @@
+ static void
+ ssc_proximity_close (SensorDevice *sensor_device)
+ {
++	g_autoptr(GError) error = NULL;
+ 	DrvData *drv_data = (DrvData *) sensor_device->priv;
+ 
++	if (drv_data->sensor) {
++		g_clear_signal_handler (&drv_data->measurement_id, drv_data->sensor);
++		if (!ssc_sensor_proximity_close_sync (drv_data->sensor, NULL, &error))
++			g_warning ("Closing SSC proximity sensor failed: %s", error->message);
++	}
+ 	g_clear_object (&drv_data->sensor);
+ 	g_clear_pointer (&sensor_device->priv, g_free);
+ 	g_free (sensor_device);
+diff --git src/iio-sensor-proxy.c b/src/iio-sensor-proxy.c
+--- a/src/iio-sensor-proxy.c	2026-07-02 02:43:40.662768897 +0300
++++ b/src/iio-sensor-proxy.c	2026-07-02 03:08:00.262729287 +0300
+@@ -779,6 +779,14 @@
+ 		}
+ 
+ 		DEVICE_FOR_TYPE(i) = sensor_device;
++
++		/* If clients claimed the sensor before we opened the device
++		 * (between bus_acquired_handler and name_acquired_handler),
++		 * start polling now. */
++		if (g_hash_table_size (data->clients[i]) > 0) {
++			data->sensor_startup_dbus_event_delayed[i] = TRUE;
++			driver_set_polling (sensor_device, TRUE);
++		}
+ 	}
+ 
+ 	if (!any_sensors_left (data))
