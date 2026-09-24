@@ -82,6 +82,7 @@ re-appears; if rotation is dead right after a resume, toggle rotation once or
 
 | Path | Role |
 | ---- | ---- |
+| `scripts/patch-sensors-on-pad.sh` | apply all of the below onto a running install (no image rebuild) |
 | `etc/udev/rules.d/81-libssc-xiaomi-pipa.rules` | shadows the COPR rule; `ssc-accel ssc-proximity` + mount matrix + `SYSTEMD_WANTS=hexagonrpcd-sdsp` |
 | `usr/lib/systemd/system/pipa-sensors-persist.service` | oneshot: persist layout + registry seed |
 | `usr/lib/systemd/system/pipa-sensor-resume.service` | post-resume rebuild (WantedBy=suspend.target) |
@@ -101,9 +102,18 @@ the tunnel to the device, so a missing DSP never keeps units running.
 `xiaomi-pipa-firmware`) and `libssc` (`ssccli`). No `qrtr` userspace package
 is needed: pipa's 7.1.x kernel runs the QRTR nameserver in-kernel.
 
-Existing installs (not rebuilt images) can get the same result by installing
-`pipa-sensors`, enabling the four services and copying the `mkosi.extra/`
-files over; the doctor script verifies.
+Existing installs do **not** need an image rebuild — this is pure userspace:
+
+```bash
+# on the Pad (branch with this change: add -b arena/01a0d30f-pipa-fedora-builder-43)
+git clone https://github.com/greed0802/pipa-fedora-builder-43
+cd pipa-fedora-builder-43
+sudo ./scripts/patch-sensors-on-pad.sh
+```
+
+The script installs `pipa-sensors` + `libssc` from the COPRs, copies the
+`mkosi.extra/` overlay onto the live rootfs, enables the services and runs
+the doctor. No kernel, boot image or reboot involved; safe to re-run.
 
 ## Provenance
 

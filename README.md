@@ -44,7 +44,7 @@
 ### Issues (all flavors):
 - Cameras: patched `kernel-pipa` + ArchPad DT lists both in `cam --list` (rear ov13b10, front hi846). Stock COPR kernel still has no sensors. See [CAMERA.md](./CAMERA.md). Do not flash `linux-archpad-pipa`.
 - Sensors (accelerometer/auto-rotation, ALS, proximity) ship **enabled by default** via the SLPI/FastRPC stack (`pipa-sensors` + `hexagonrpcd-sdsp` + `iio-sensor-proxy`) with a deterministic suspend/resume flow. See [SENSORS.md](./SENSORS.md); on the Pad run `sudo pipa-sensor-doctor` to check every layer.
-- On images built before this change sensors were opt-in: install `pipa-sensors`, enable `iio-sensor-proxy` & `hexagonrpcd-sdsp`, and optionally `pipa-sensor-restart` (the old 10-15s post-resume restart hack, superseded by the new flow).
+- On images built before this change sensors were opt-in — no rebuild needed, apply it live on the Pad: `sudo ./scripts/patch-sensors-on-pad.sh` (installs `pipa-sensors` + `libssc`, copies the overlay, enables services, verifies). The old advice was: install `pipa-sensors`, enable `iio-sensor-proxy` & `hexagonrpcd-sdsp`, and optionally `pipa-sensor-restart` (the old 10-15s post-resume restart hack, superseded by the new flow).
 
 ### Tips and Tricks:
 - Run ```widevine-installer``` to install the Widevinde CDM for Firefox and Chromium based browsers, works for system packages only. **(The widevine CDM module is not altered in any way, nor is it preinstalled or distributed by me)**
