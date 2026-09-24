@@ -64,6 +64,11 @@ apply_one() {
 		echo "applied $(basename "$p")"
 	elif git -C "$TREE" apply --reverse --check "$p" >/dev/null 2>&1; then
 		echo "already applied $(basename "$p")"
+	elif patch -d "$TREE" -p1 -R --dry-run -s -i "$p" >/dev/null 2>&1; then
+		echo "already applied (patch) $(basename "$p")"
+	elif patch -d "$TREE" -p1 -N --dry-run -i "$p" >/dev/null 2>&1; then
+		patch -d "$TREE" -p1 -N -i "$p"
+		echo "applied (patch) $(basename "$p")"
 	else
 		echo "SKIP (does not apply): $(basename "$p")" >&2
 	fi

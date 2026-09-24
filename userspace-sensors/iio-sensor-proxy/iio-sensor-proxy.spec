@@ -3,6 +3,10 @@ Version:        3.9
 Release:        2.pipa%{?dist}
 Summary:        IIO accelerometer sensor to input device proxy (pipa SSC fix series)
 
+# Local on-pad build: no debuginfo/debugsource subpackages (the auto-generated
+# debugsource %files list is empty for this tree and kills rpmbuild).
+%define debug_package %{nil}
+
 License:        GPL-3.0-or-later
 URL:            https://gitlab.freedesktop.org/hadess/iio-sensor-proxy
 # Built on the Pad by scripts/build-install-iio-sensor-proxy.sh from upstream
