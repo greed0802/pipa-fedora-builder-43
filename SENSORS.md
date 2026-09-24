@@ -7,6 +7,11 @@ Auto-rotation and auto-brightness should work on both the stock COPR
 `kernel-pipa` and the camera-patched `7.1.7-pipa-cam+` kernel — **no kernel
 patches are involved** (unlike the camera).
 
+Live-verified on the Pad (2026-09): accelerometer streams all four
+orientations across suspend/resume cycles; ambient light streams lux values;
+the iio-sensor-proxy SSC fix series (below) is required for delivery to
+clients — the stock 3.9 COPR build claims sensors but never sends data.
+
 On-pad one-shot check after flashing/rebooting (the doctor ships in the
 image):
 
