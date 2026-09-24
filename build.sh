@@ -181,6 +181,12 @@ make_image() {
     arch-chroot $image_mnt systemctl enable tuned.service
     # echo "### DEBUG: tuned-ppd.service"
     arch-chroot $image_mnt systemctl enable tuned-ppd.service
+    echo "### Enabling sensor stack (see SENSORS.md)"
+    arch-chroot $image_mnt systemctl enable pipa-sensors-persist.service
+    arch-chroot $image_mnt systemctl enable hexagonrpcd-sdsp.service
+    # iio-sensor-proxy.service is static: started by the udev rule on
+    # /dev/fastrpc-sdsp (upstream rule wants it once a sensor type is tagged).
+    arch-chroot $image_mnt systemctl enable pipa-sensor-resume.service
     echo "### Setting default systemd target"
     if [[ -n "$mkosi_profile" ]]; then
         arch-chroot "$image_mnt" systemctl set-default graphical.target

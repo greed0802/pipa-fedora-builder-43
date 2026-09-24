@@ -1,0 +1,46 @@
+#!/bin/bash
+# Prepare /mnt/vendor/persist/sensors for hexagonrpcd on Xiaomi Pad 6 (pipa).
+#
+# The SLPI SensorPD reads/writes its calibration registry at the Android
+# persist path. We recreate that path inside the rootfs and seed it with the
+# pre-generated registry shipped in xiaomi-pipa-firmware, so the DSP accepts
+# it instead of rebuilding on every boot. Idempotent; safe to re-run.
+#
+# Origin: thespider2/pipa-pkgs pipa-sensors (MIT), same approach as
+# ArchPad's sns_reg_version mapping.
+set -euo pipefail
+
+PERSIST_BASE="/mnt/vendor/persist/sensors"
+REGISTRY="${PERSIST_BASE}/registry"
+REGISTRY_DATA="${REGISTRY}/registry"
+FW_REGISTRY="/usr/share/qcom/sm8250/Xiaomi/pipa/sensors/registry"
+
+install -d -m 0755 -o fastrpc -g fastrpc "${PERSIST_BASE}"
+install -d -m 0755 -o fastrpc -g fastrpc "${REGISTRY}"
+install -d -m 0755 -o fastrpc -g fastrpc "${REGISTRY_DATA}"
+
+# Recover from broken installs that left the parent directories unreadable.
+chmod 0755 "${REGISTRY}" 2>/dev/null || true
+chmod 0755 "${REGISTRY_DATA}" 2>/dev/null || true
+
+# Seed the DSP registry once, from the firmware package's snapshot.
+if [[ -d "${FW_REGISTRY}" ]] && [[ -z "$(ls -A "${REGISTRY_DATA}" 2>/dev/null || true)" ]]; then
+	cp -a "${FW_REGISTRY}/." "${REGISTRY_DATA}/"
+fi
+
+if [[ -d "${REGISTRY_DATA}" ]]; then
+	chown -R fastrpc:fastrpc "${REGISTRY_DATA}"
+	find "${REGISTRY_DATA}" -type d -exec chmod 0755 {} +
+	find "${REGISTRY_DATA}" -type f -exec chmod 0644 {} +
+fi
+
+# sns_reg_version marks the pre-generated registry as valid so the SensorPD
+# does not try to regenerate it (needs hexagonrpcd mapping it, see SENSORS.md).
+if [[ ! -s "${REGISTRY}/sns_reg_version" ]]; then
+	printf '1.0\n' >"${REGISTRY}/sns_reg_version"
+fi
+
+# The DSP writes this scratch file; pre-create it writable for the daemon.
+: >"${REGISTRY}/temp.json"
+chown fastrpc:fastrpc "${REGISTRY}/sns_reg_version" "${REGISTRY}/temp.json"
+chmod 0644 "${REGISTRY}/sns_reg_version" "${REGISTRY}/temp.json"

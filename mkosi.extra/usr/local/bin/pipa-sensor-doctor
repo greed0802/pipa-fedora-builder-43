@@ -1,0 +1,157 @@
+#!/bin/bash
+# pipa sensor stack doctor — run on the Xiaomi Pad 6 (Fedora).
+#
+# Checks every layer of the sensor path:
+#   SLPI remoteproc -> /dev/fastrpc-sdsp -> hexagonrpcd-sdsp (FastRPC tunnel)
+#   -> persist registry -> ssccli sample -> iio-sensor-proxy -> D-Bus clients
+#
+# Usage:
+#   ./pipa-sensor-doctor.sh               # report only
+#   sudo ./pipa-sensor-doctor.sh          # also reads system daemons' journals
+#   sudo ./pipa-sensor-doctor.sh --suspend-test   # suspend + recheck on resume
+set -u
+
+PASS=0; FAIL=0
+ok()   { printf '  \033[32mPASS\033[0m %s\n' "$1"; PASS=$((PASS+1)); }
+bad()  { printf '  \033[31mFAIL\033[0m %s\n' "$1"; FAIL=$((FAIL+1)); }
+warn() { printf '  \033[33mWARN\033[0m %s\n' "$1"; PASS=$((PASS+1)); }
+hdr()  { printf '\n== %s ==\n' "$1"; }
+as_root() { [ "$(id -u)" -eq 0 ]; }
+
+SUSPEND_TEST=0
+[ "${1:-}" = "--suspend-test" ] && SUSPEND_TEST=1
+
+hdr "kernel / DSP"
+kver=$(uname -r)
+echo "  kernel: $kver"
+slpi=""
+for r in /sys/class/remoteproc/remoteproc*; do
+	[ -f "$r/name" ] || continue
+	if [ "$(cat "$r/name")" = "slpi" ]; then slpi="$r"; break; fi
+done
+if [ -n "$slpi" ]; then
+	state=$(cat "$slpi/state" 2>/dev/null || echo '?')
+	case "$state" in
+		running) ok "SLPI remoteproc running ($slpi)" ;;
+		offline) bad "SLPI remoteproc offline — try: echo start | sudo tee $slpi/state" ;;
+		*)       warn "SLPI remoteproc state '$state'" ;;
+	esac
+else
+	bad "no SLPI remoteproc in sysfs — DT lacks &slpi (kernel too old?)"
+fi
+
+if [ -e /dev/fastrpc-sdsp ]; then
+	ok "/dev/fastrpc-sdsp present"
+else
+	bad "/dev/fastrpc-sdsp missing — SLPI down or fastrpc compute-cb missing"
+fi
+
+hdr "udev properties (fastrpc-sdsp)"
+if [ -e /dev/fastrpc-sdsp ]; then
+	props=$(udevadm info -q property -n /dev/fastrpc-sdsp 2>/dev/null || true)
+	echo "$props" | grep -q "IIO_SENSOR_PROXY_TYPE=.*ssc-accel" \
+		&& ok "IIO_SENSOR_PROXY_TYPE contains ssc-accel" \
+		|| bad "ssc-accel not tagged — /etc/udev/rules.d/81-libssc-xiaomi-pipa.rules missing? (sudo udevadm control --reload && sudo udevadm trigger /dev/fastrpc-sdsp)"
+	echo "$props" | grep -q "ACCEL_MOUNT_MATRIX" \
+		&& ok "ACCEL_MOUNT_MATRIX set: $(echo "$props" | grep ACCEL_MOUNT_MATRIX | cut -d= -f2-)" \
+		|| warn "ACCEL_MOUNT_MATRIX unset — rotation axis mapping will be wrong"
+else
+	echo "  (device missing, skipped)"
+fi
+
+hdr "packages"
+for p in hexagonrpc iio-sensor-proxy libssc pipa-sensors xiaomi-pipa-firmware; do
+	if rpm -q "$p" >/dev/null 2>&1; then ok "$(rpm -q "$p")"; else bad "$p not installed"; fi
+done
+
+hdr "persist registry"
+for d in /mnt/vendor/persist/sensors /mnt/vendor/persist/sensors/registry/registry; do
+	[ -d "$d" ] && ok "$d" || bad "$d missing (pipa-sensors-persist.service not run?)"
+done
+if [ -s /mnt/vendor/persist/sensors/registry/sns_reg_version ]; then
+	ok "sns_reg_version: $(cat /mnt/vendor/persist/sensors/registry/sns_reg_version | tr -d '\n')"
+else
+	warn "sns_reg_version empty/missing — DSP will rebuild its registry"
+fi
+n=$(ls /mnt/vendor/persist/sensors/registry/registry 2>/dev/null | wc -l)
+[ "$n" -gt 0 ] && ok "registry seeded ($n files, expect bmi3x0_0.*, ak0991x_0.*)" \
+	|| bad "registry empty — firmware sensors/registry not seeded"
+
+hdr "services"
+for u in pipa-sensors-persist.service hexagonrpcd-sdsp.service iio-sensor-proxy.service pipa-sensor-resume.service; do
+	st=$(systemctl is-active "$u" 2>/dev/null || true)
+	en=$(systemctl is-enabled "$u" 2>/dev/null || true)
+	case "$st" in
+		active) ok "$u active (enabled=$en)" ;;
+		inactive)
+			case "$u" in
+				iio-sensor-proxy.service)
+					warn "$u inactive (normal while suspended or before first claim; enabled=$en)" ;;
+				pipa-sensor-resume.service)
+					ok "$u inactive (oneshot — runs only after a suspend/resume cycle; enabled=$en)" ;;
+				*)
+					bad "$u inactive (enabled=$en)" ;;
+			esac ;;
+		*) bad "$u state: $st (enabled=$en)" ;;
+	esac
+done
+if systemctl is-enabled pipa-sensor-restart.service >/dev/null 2>&1 || [ -x /usr/lib/systemd/system-sleep/pipa-sensor-restart ]; then
+	head -1 /usr/lib/systemd/system-sleep/pipa-sensor-restart 2>/dev/null | grep -q Neutralized \
+		&& ok "old pipa-sensor-restart sleep hook neutralized" \
+		|| warn "old pipa-sensor-restart RPM hook active — double restarts after resume"
+fi
+
+hdr "DSP sample + D-Bus"
+if command -v ssccli >/dev/null 2>&1; then
+	if ssccli --sensor accelerometer --timeout 1 2>/dev/null | grep -qE 'accel|Accel|[0-9]'; then
+		ok "ssccli received accelerometer data"
+	else
+		bad "ssccli got no accelerometer sample (SensorPD not ready — check hexagonrpcd journal)"
+	fi
+else
+	bad "ssccli not found (libssc missing)"
+fi
+if command -v busctl >/dev/null 2>&1; then
+	ha=$(busctl get-property net.hadess.SensorProxy /net/hadess/SensorProxy net.hadess.SensorProxy HasAccelerometer 2>/dev/null || true)
+	case "$ha" in
+		b*true*)  ok "SensorProxy reports HasAccelerometer=true" ;;
+		b*false*) bad "SensorProxy running but HasAccelerometer=false — usually a proxy that predates the DSP tunnel: sudo systemctl restart iio-sensor-proxy" ;;
+		*)        warn "SensorProxy not on D-Bus (iio-sensor-proxy not running?)" ;;
+	esac
+fi
+
+hdr "journal hints (last 20)"
+if as_root; then
+	journalctl -b --no-pager -n 8 -u hexagonrpcd-sdsp.service 2>/dev/null | sed 's/^/  /'
+	journalctl -b --no-pager -n 8 -u iio-sensor-proxy.service 2>/dev/null | sed 's/^/  /'
+else
+	echo "  (run with sudo to include journal excerpts)"
+fi
+
+if [ "$SUSPEND_TEST" -eq 1 ]; then
+	hdr "suspend test"
+	as_root || { echo "  --suspend-test needs sudo"; exit 1; }
+	echo "  Suspending in 5s — wake the pad with the power key..."
+	sleep 5
+	pre_uptime=$(cut -d. -f1 /proc/uptime)
+	if ! systemctl suspend; then echo "  suspend failed"; exit 1; fi
+	echo "  ...waking"
+	# wait for the clock to move past the pre-suspend uptime (resume done),
+	# then give our resume flow time to rebuild the stack
+	for i in $(seq 1 120); do
+		[ "$(cut -d. -f1 /proc/uptime)" -gt "$((pre_uptime + 2))" ] && break
+		sleep 1
+	done
+	sleep 20
+	echo "  resume unit: $(systemctl is-active pipa-sensor-resume.service)"
+	journalctl -b --no-pager -t pipa-sensor-resume -t pipa-wait-ssc -n 10 2>/dev/null | sed 's/^/  /'
+	ssccli --sensor accelerometer --timeout 2 2>/dev/null | grep -qE '[0-9]' \
+		&& ok "accelerometer works after suspend" \
+		|| bad "accelerometer still dead after suspend — see journal above"
+	ha=$(busctl get-property net.hadess.SensorProxy /net/hadess/SensorProxy net.hadess.SensorProxy HasAccelerometer 2>/dev/null || true)
+	echo "  HasAccelerometer after resume: ${ha:-<no proxy>}"
+	echo "  NOTE: the desktop may need its screen-rotation toggle toggled once to re-claim."
+fi
+
+printf '\n== %d passed, %d failed ==\n' "$PASS" "$FAIL"
+[ "$FAIL" -eq 0 ]
