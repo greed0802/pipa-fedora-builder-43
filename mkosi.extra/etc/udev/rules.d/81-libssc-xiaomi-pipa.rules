@@ -1,0 +1,27 @@
+# iio-sensor-proxy with libssc on pipa (Xiaomi Pad 6, sm8250 SLPI/SDSP)
+#
+# This file SHADOWS the rule shipped by the COPR `pipa-sensors` package
+# (/usr/lib/udev/rules.d/81-libssc-xiaomi-pipa.rules). Same name in /etc
+# wins, so the package rule is inert. Why:
+#   * the package rule sets ACCEL_MOUNT_MATRIX on ALL fastrpc-* devices and
+#     never tags the sensor types, so the accelerometer is never claimed and
+#     a second matrix would be appended if both rules ran.
+#
+# Upstream 80-iio-sensor-proxy.rules only enables "ssc-light ssc-compass"
+# for fastrpc-sdsp. The accelerometer (and proximity) must be opted in
+# per-device — the SSC accelerometer open can block on some devices, so
+# upstream keeps it behind an explicit tag (see liuqin/ArchPad).
+#
+# ssc-accel = auto-rotation (BMI3x0 IMU), ssc-proximity is optional and only
+# claimed if the sensor firmware actually exposes one.
+
+# Bind the sensor-DSP FastRPC tunnel to the device: whenever
+# /dev/fastrpc-sdsp exists, hexagonrpcd-sdsp is started via systemd.
+SUBSYSTEM=="misc", KERNEL=="fastrpc-sdsp", TAG+="systemd", \
+  ENV{SYSTEMD_WANTS}+="hexagonrpcd-sdsp.service", \
+  ENV{IIO_SENSOR_PROXY_TYPE}+="ssc-accel ssc-proximity", \
+  ENV{ACCEL_MOUNT_MATRIX}="-1, 0, 0; 0, -1, 0; 0, 0, -1"
+
+# ACCEL_MOUNT_MATRIX notes (landscape-first panel, tested by ArchPad on pipa):
+#   rotation dead/wrong? rotate the tablet and check monitor-sensor; swap the
+#   matrix for "-1, 0, 0; 0, -1, 0; 0, 0, 1" if the reading is mirrored.

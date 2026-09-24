@@ -181,6 +181,11 @@ make_image() {
     arch-chroot $image_mnt systemctl enable tuned.service
     # echo "### DEBUG: tuned-ppd.service"
     arch-chroot $image_mnt systemctl enable tuned-ppd.service
+    echo "### Enabling sensor stack (see SENSORS.md)"
+    arch-chroot $image_mnt systemctl enable pipa-sensors-persist.service
+    arch-chroot $image_mnt systemctl enable hexagonrpcd-sdsp.service
+    arch-chroot $image_mnt systemctl enable iio-sensor-proxy.service
+    arch-chroot $image_mnt systemctl enable pipa-sensor-resume.service
     echo "### Setting default systemd target"
     if [[ -n "$mkosi_profile" ]]; then
         arch-chroot "$image_mnt" systemctl set-default graphical.target
