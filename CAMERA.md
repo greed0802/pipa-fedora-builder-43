@@ -159,3 +159,30 @@ you have not tried.
 | `scripts/build-install-camera-kernel.sh` | Pad-side `make` + `kernel-install` |
 
 Userspace IPA stubs (optional): `mkosi.extra/usr/share/libcamera/ipa/simple/{ov13b10,hi846}.yaml`.
+
+## Browser calls (Meet / Messenger / Zoom-web) on a pad-patched install
+
+The image build lands `mkosi.extra/etc/udev/rules.d/80-pipa-camera.rules` in
+every image — but the on-pad kernel flow above never copies it, and without
+it browsers render a silent white/black preview: the soft-ISP allocates from
+CMA dma-heaps that ship as `0600 root`, and the `linux,cma` symlink for
+libcamera 0.7 is missing. Fix on an existing install:
+
+```bash
+sudo cp mkosi.extra/etc/udev/rules.d/80-pipa-camera.rules /etc/udev/rules.d/
+sudo udevadm control --reload && sudo udevadm trigger
+ls -l /dev/dma_heap/   # expect video:video 0660 + linux,cma -> default_cma_region
+```
+
+Browser rules of thumb (same as for Meet):
+
+* Pick **one** camera in the site's video settings *before* joining — this
+  build has no working front camera (HI846 lists but STREAMON fails), and a
+  failed front-camera open holds the ISP and kills the rear one too.
+  If both die mid-call: `sudo scripts/pipa-camera-recover.sh` (module
+  reload + your PipeWire restarted), or reboot.
+* CAMSS is also flaky after suspend; after heavy suspend/resume testing,
+  re-check with `cam --list` + a 720p capture before blaming the browser.
+* Firefox uses PipeWire for cameras on Wayland (`pw-cli ls Node | grep -i
+  camera` should show a libcamera node); check facebook.com's camera
+  permission in the lock-icon menu.
