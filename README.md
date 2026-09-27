@@ -33,7 +33,7 @@
 ### Kernel Status:
 | Sleep | Speakers | Mic | WLAN | Bluetooth | (Fast) Charging | Battery Status | Hall | Display | Brightness | Touch | GPU | USB (Host/Client) | DP alt mode | UFS | Back Camera | Front Camera | Sensors | Xiaomi Keyboard | Pen | Hall Sensor
 | ----------- | ----------- | ----------- | ----------- | ----------- | ----------- | ----------- | ----------- | ----------- | ----------- | ----------- | ----------- | ----------- | ----------- | ----------- | ----------- | ----------- | ----------- | ----------- | ----------- | ----------- |
-| ✅️ | ✅️ | ✅️ | ✅️ | ✅️ | ✅️ (~10w) | ✅️ | ✅️ | ✅️ | ✅️ | ✅️ | ✅️ | ✅️ | ✅️ | ✅️ | ⚠️ (sometimes) | ❌️ | ⚠️ (flaky) | ✅️ | ✅️ | ✅ |
+| ✅️ | ✅️ | ✅️ | ✅️ | ✅️ | ✅️ (~10w) | ✅️ | ✅️ | ✅️ | ✅️ | ✅️ | ✅️ | ✅️ | ✅️ | ✅️ | ⚠️ (sometimes) | ❌️ | ✅️ | ✅️ | ✅️ | ✅ |
 
 ### User Notes:
 - The root password is ```fedora```
@@ -42,9 +42,9 @@
 - Dualboot (Android slot A, Fedora slot B) is documented in [DUALBOOT.md](./DUALBOOT.md). Switching from Fedora: ```sudo pipa-switch-slot a``` — prefer ```fastboot set_active``` from a PC when you can.
 
 ### Issues (all flavors):
-- Cameras: patched `kernel-pipa` + ArchPad DT lists both in `cam --list` (rear ov13b10, front hi846). Stock COPR kernel still has no sensors. See [CAMERA.md](./CAMERA.md). Do not flash `linux-archpad-pipa`.
-- Sensors may break after suspend, so they are disabled by default. To enable them install ```pipa-sensors``` and enable the ```iio-sensor-proxy``` & ```hexagonrpcd-sdsp``` services
-- To automatically restart the services and fix the sensors, install ```pipa-sensor-restart```. It takes ~10-15s after waking for the sensors to come back online (might not always work)
+- Cameras: patched `kernel-pipa` + ArchPad DT lists both in `cam --list` (rear ov13b10, front hi846) — **both stream**, but pick the camera in the site's video settings *before* joining/enabling video: CAMSS is single-sensor and mid-call switching can wedge both until `scripts/pipa-camera-recover.sh`. Stock COPR kernel has no camera sensors. See [CAMERA.md](./CAMERA.md) (browser setup: Brave flag / Firefox pref). Do not flash `linux-archpad-pipa`.
+- Sensors (accelerometer/auto-rotation, ALS, proximity) ship **enabled by default** via the SLPI/FastRPC stack (`pipa-sensors` + `hexagonrpcd-sdsp` + `iio-sensor-proxy`) with a deterministic suspend/resume flow. See [SENSORS.md](./SENSORS.md); on the Pad run `sudo pipa-sensor-doctor` to check every layer.
+- On images built before this change sensors were opt-in — no rebuild needed, apply it live on the Pad: `sudo ./scripts/patch-sensors-on-pad.sh` (installs `pipa-sensors` + `libssc`, copies the overlay, enables services, verifies). The old advice was: install `pipa-sensors`, enable `iio-sensor-proxy` & `hexagonrpcd-sdsp`, and optionally `pipa-sensor-restart` (the old 10-15s post-resume restart hack, superseded by the new flow).
 
 ### Tips and Tricks:
 - Run ```widevine-installer``` to install the Widevinde CDM for Firefox and Chromium based browsers, works for system packages only. **(The widevine CDM module is not altered in any way, nor is it preinstalled or distributed by me)**

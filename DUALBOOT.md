@@ -314,8 +314,11 @@ That restores stock GPT, `super`, both boot slots, and userdata.
 
 These are device quirks from the same wiki; they apply on Fedora too:
 
-- **Sensors** talk through the Hexagon DSP and often die after suspend.
-  `sudo systemctl restart hexagonrpcd-sdsp` (or install `pipa-sensor-restart`).
+- **Sensors** talk through the Hexagon DSP; images ship the full stack enabled
+  with suspend handling (see `SENSORS.md`). If sensors ever look dead:
+  `sudo ./scripts/pipa-sensor-doctor.sh` pinpoints the layer, and
+  `sudo systemctl restart iio-sensor-proxy` is the one-liner after a weird
+  resume.
 - **HDMI/DP:** unplug the monitor from power before plugging the cable in.
 - **Speakers:** AW88261 on tertiary TDM; a right-channel-only test tone can
   be silent even when the left speaker works.

@@ -1,0 +1,20 @@
+[Unit]
+Description=Prepare pipa sensor persist storage for hexagonrpcd
+# The SLPI SensorPD expects its registry at the Android persist path and
+# writes temp files next to it. Fedora has no /mnt/vendor/persist mount, so
+# we provide the layout inside the rootfs, seeded with the pre-generated
+# registry from xiaomi-pipa-firmware. Without this the DSP falls back to
+# rebuilding its registry on every boot (slow first sensor, temp.json write
+# spam in the hexagonrpcd journal).
+DefaultDependencies=no
+After=local-fs.target systemd-tmpfiles-setup.service
+Before=hexagonrpcd-sdsp.service
+ConditionPathExists=/usr/share/qcom/sm8250/Xiaomi/pipa/sensors/registry
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/pipa-prepare-sensor-persist
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

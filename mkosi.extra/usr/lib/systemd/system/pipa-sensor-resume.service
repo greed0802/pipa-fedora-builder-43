@@ -1,0 +1,16 @@
+[Unit]
+Description=Restart pipa sensor stack after resume
+# suspend.target becomes "reached" only after systemd-suspend.service (which
+# contains the actual sleep) finishes, i.e. after resume. A unit that is
+# WantedBy=suspend.target and After=suspend.target therefore runs post-resume.
+# Units with Conflicts=suspend.target are stopped before suspend and stay down
+# until this unit starts them again (Restart= is NOT triggered by conflicts).
+After=suspend.target hibernate.target hybrid-sleep.target suspend-then-hibernate.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/pipa-sensor-resume
+TimeoutStartSec=120
+
+[Install]
+WantedBy=suspend.target hibernate.target hybrid-sleep.target suspend-then-hibernate.target

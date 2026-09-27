@@ -1,0 +1,14 @@
+#!/bin/sh
+# Neutralized by pipa-fedora-builder-43.
+#
+# This file shadows the pipa-sensor-restart RPM's system-sleep hook (same
+# path in mkosi.extra wins). The blind "sleep 2; restart proxy; restart
+# daemon; restart proxy" post-resume hook is replaced by the deterministic
+# systemd flow:
+#
+#   iio-sensor-proxy.service.d/pipa.conf   Conflicts=suspend.target  (stop before sleep)
+#   pipa-sensor-resume.service             WantedBy=suspend.target   (rebuild after resume)
+#
+# To go back to the RPM behaviour, delete this file from the rootfs:
+#   sudo rm /usr/lib/systemd/system-sleep/pipa-sensor-restart
+exit 0

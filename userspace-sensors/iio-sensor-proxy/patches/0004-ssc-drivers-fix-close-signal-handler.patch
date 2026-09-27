@@ -1,0 +1,79 @@
+diff --git a/src/drv-ssc-accel.c b/src/drv-ssc-accel.c
+--- a/src/drv-ssc-accel.c
++++ b/src/drv-ssc-accel.c
+@@ -44,6 +44,7 @@ ssc_accelerometer_discover (GUdevDevice *device)
+ 		return FALSE;
+ 
+ 	g_debug ("Found SSC accelerometer at %s", g_udev_device_get_sysfs_path (device));
++	g_clear_object (&sensor);
+ 	return TRUE;
+ }
+ 
+@@ -133,8 +134,10 @@ ssc_accelerometer_close (SensorDevice *sensor_device)
+ 	DrvData *drv_data = (DrvData *) sensor_device->priv;
+ 
+ 	if (drv_data->sensor) {
+-		g_clear_signal_handler (&drv_data->measurement_id, drv_data->sensor);
+-		ssc_sensor_accelerometer_close_sync (drv_data->sensor, NULL, &error);
++		if (drv_data->measurement_id)
++			g_clear_signal_handler (&drv_data->measurement_id, drv_data->sensor);
++		if (!ssc_sensor_accelerometer_close_sync (drv_data->sensor, NULL, &error))
++			g_warning ("Closing SSC accelerometer sensor failed: %s", (error && error->message) ? error->message : "unknown error");
+ 	}
+ 	g_clear_object (&drv_data->sensor);
+ 	g_clear_pointer (&drv_data->mount_matrix, g_free);
+diff --git a/src/drv-ssc-compass.c b/src/drv-ssc-compass.c
+--- a/src/drv-ssc-compass.c
++++ b/src/drv-ssc-compass.c
+@@ -40,6 +40,7 @@ ssc_compass_discover (GUdevDevice *device)
+ 		return FALSE;
+ 
+ 	g_debug ("Found SSC compass at %s", g_udev_device_get_sysfs_path (device));
++	g_clear_object (&sensor);
+ 	return TRUE;
+ }
+ 
+@@ -113,7 +114,8 @@ ssc_compass_close (SensorDevice *sensor_device)
+ 	DrvData *drv_data = (DrvData *) sensor_device->priv;
+ 
+ 	if (drv_data->sensor) {
+-		g_clear_signal_handler (&drv_data->measurement_id, drv_data->sensor);
++		if (drv_data->measurement_id)
++			g_clear_signal_handler (&drv_data->measurement_id, drv_data->sensor);
+ 		if (!ssc_sensor_compass_close_sync (drv_data->sensor, NULL, &error))
+ 			g_warning ("Closing SSC compass sensor failed: %s", (error && error->message) ? error->message : "unknown error");
+ 	}
+diff --git a/src/drv-ssc-light.c b/src/drv-ssc-light.c
+--- a/src/drv-ssc-light.c
++++ b/src/drv-ssc-light.c
+@@ -40,6 +40,7 @@ ssc_light_discover (GUdevDevice *device)
+ 		return FALSE;
+ 
+ 	g_debug ("Found SSC light at %s", g_udev_device_get_sysfs_path (device));
++	g_clear_object (&sensor);
+ 	return TRUE;
+ }
+ 
+@@ -110,7 +111,8 @@ ssc_light_close (SensorDevice *sensor_device)
+ 	DrvData *drv_data = (DrvData *) sensor_device->priv;
+ 
+ 	if (drv_data->sensor) {
+-		g_clear_signal_handler (&drv_data->measurement_id, drv_data->sensor);
++		if (drv_data->measurement_id)
++			g_clear_signal_handler (&drv_data->measurement_id, drv_data->sensor);
+ 		if (!ssc_sensor_light_close_sync (drv_data->sensor, NULL, &error))
+ 			g_warning ("Closing SSC light sensor failed: %s", (error && error->message) ? error->message : "unknown error");
+ 	}
+diff --git a/src/drv-ssc-proximity.c b/src/drv-ssc-proximity.c
+--- a/src/drv-ssc-proximity.c
++++ b/src/drv-ssc-proximity.c
+@@ -111,7 +111,8 @@ ssc_proximity_close (SensorDevice *sensor_device)
+ 	DrvData *drv_data = (DrvData *) sensor_device->priv;
+ 
+ 	if (drv_data->sensor) {
+-		g_clear_signal_handler (&drv_data->measurement_id, drv_data->sensor);
++		if (drv_data->measurement_id)
++			g_clear_signal_handler (&drv_data->measurement_id, drv_data->sensor);
+ 		if (!ssc_sensor_proximity_close_sync (drv_data->sensor, NULL, &error))
+ 			g_warning ("Closing SSC proximity sensor failed: %s", (error && error->message) ? error->message : "unknown error");
+ 	}

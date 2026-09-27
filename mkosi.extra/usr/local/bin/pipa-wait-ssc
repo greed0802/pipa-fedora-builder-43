@@ -1,0 +1,29 @@
+#!/bin/bash
+# Block until the SLPI sensor DSP actually answers an accelerometer request.
+#
+# Used as ExecStartPre for iio-sensor-proxy: SSC discovery over FastRPC fails
+# silently when the SensorPD is still booting (first boot after power-on and
+# the first seconds after resume). Without this gate the proxy publishes no
+# accelerometer and auto-rotation is dead until it is restarted.
+#
+# Soft-fails on purpose: the ambient light sensor does not need the IMU, so
+# never block the proxy forever.
+set -u
+
+MAX_TRIES="${1:-40}"   # 40 * 0.5s = 20s
+
+command -v ssccli >/dev/null 2>&1 || exit 0
+[ -e /dev/fastrpc-sdsp ] || exit 0
+
+i=0
+while [ "$i" -lt "$MAX_TRIES" ]; do
+	if ssccli --sensor accelerometer --timeout 1 >/dev/null 2>&1; then
+		logger -t pipa-wait-ssc "accelerometer ready after $((i + 1)) probe(s)"
+		exit 0
+	fi
+	i=$((i + 1))
+	sleep 0.5
+done
+
+logger -t pipa-wait-ssc "accelerometer still not ready after ~$((MAX_TRIES / 2))s; starting proxy anyway"
+exit 0

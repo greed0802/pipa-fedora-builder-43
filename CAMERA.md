@@ -92,6 +92,16 @@ uname -r   # 7.1.7-pipa-cam+
 cam --list
 ```
 
+Live-verified (2026-09): **both cameras stream** — rear OV13B10 720p @ 120
+fps via `cam`, front HI846 in Messenger/Brave **when pre-selected in the
+call's video settings before enabling video** (start the call with it
+already chosen). Mid-call front/back flipping is still unsupported: CAMSS
+runs one sensor at a time and a failed switch wedges both cameras until
+`scripts/pipa-camera-recover.sh` or a reboot. `wpctl status` shows both
+libcamera cameras as WirePlumber sources; `cam --file` needs the `=` form
+(`--file=/tmp/x.ppm`): `-F` and `-C` are optional-argument options and only
+take a value with `=`.
+
 ```
 Available cameras:
 1: Internal front camera (.../cci@ac50000/i2c-bus@1/camera@20)   # hi846
@@ -104,7 +114,7 @@ Rectangle / IPA-helper warnings are noise.
 # qcam always picks max Bayer (rear 4208×3120) and dies:
 #   Failed to allocate capture buffers (dma-heap)
 # CmaTotal 128 MiB is still too small for 13 MP. Use 720p:
-cam -c 1 -s width=1280,height=720,role=viewfinder --capture=5 -F /tmp/back-#.ppm
+cam -c 1 -s width=1280,height=720,role=viewfinder --capture=5 --file=/tmp/back-#.ppm
 ```
 
 Meet / Firefox: **Built-in Back Camera** or **Built-in Front Camera** (libcamera).
@@ -159,3 +169,89 @@ you have not tried.
 | `scripts/build-install-camera-kernel.sh` | Pad-side `make` + `kernel-install` |
 
 Userspace IPA stubs (optional): `mkosi.extra/usr/share/libcamera/ipa/simple/{ov13b10,hi846}.yaml`.
+
+## Browser calls (Meet / Messenger / Zoom-web) on a pad-patched install
+
+The image build lands `mkosi.extra/etc/udev/rules.d/80-pipa-camera.rules` in
+every image — but the on-pad kernel flow above never copies it, and without
+it browsers render a silent white/black preview: the soft-ISP allocates from
+CMA dma-heaps that ship as `0600 root`, and the `linux,cma` symlink for
+libcamera 0.7 is missing. Fix on an existing install:
+
+```bash
+sudo cp mkosi.extra/etc/udev/rules.d/80-pipa-camera.rules /etc/udev/rules.d/
+sudo udevadm control --reload && sudo udevadm trigger
+ls -l /dev/dma_heap/   # expect video:video 0660 + linux,cma -> default_cma_region
+```
+
+Browser rules of thumb (same as for Meet):
+
+* **Chromium/Brave/Chrome** grab raw `/dev/video*` V4L2 nodes by default —
+  useless on CAMSS (the ISP is only configured by libcamera). Enable the
+  PipeWire camera: `brave://flags/#enable-pipewire-camera` (or
+  `chrome://flags/...`) → **Enabled** → relaunch. The site's camera picker
+  then lists **"Internal back camera"** (libcamera names) instead of
+  `Iris`/`videoN`. Without this the preview is a silent black/white tile.
+* **Firefox** needs `about:config` → `media.webrtc.camera.allow-pipewire =
+  true` for libcamera devices to appear. — then **fully restart Firefox**
+  (all windows): the PipeWire camera list is only built at startup, so the
+  Meet green room keeps saying "Camera not found" until then. Still stuck?
+  open the camera dropdown once to force a refresh, and test outside Meet
+  at mozilla.github.io/webrtc-landing (Camera button).
+* Pick **one** camera in the site's video settings *before* joining /
+  enabling video — **both cameras stream** (rear OV13B10, front HI846 when
+  pre-selected), but CAMSS runs one sensor at a time: the mid-call flip
+  button can hold the ISP and kill both cameras (rear too). If that happens:
+  `sudo scripts/pipa-camera-recover.sh`, or reboot; then rejoin with the
+  camera pre-selected.
+* **Handing the camera to the next app after a call** → if the other browser
+  hangs at "Starting camera", the previous stream ended uncleanly (killed
+  tab, crash) and the sensor is still pinned. Run
+  `sudo scripts/pipa-camera-recover.sh`: it tries the light path first
+  (WirePlumber restart only — audio keeps playing) and escalates to a full
+  PipeWire restart only if the kernel modules are pinned. End calls with
+  the app's Leave button instead of killing tabs and the handoff usually
+  needs nothing at all.
+* Debugging: `pw-cli` ships in the `pipewire-utils` package (not installed
+  by this image); `wpctl status` (installed) has a Video section listing
+  the libcamera cameras WirePlumber exposes. If the Video section is
+  empty: `systemctl --user restart wireplumber pipewire` (as *your* user,
+  never sudo).
+* CAMSS is also flaky after suspend; after heavy suspend/resume testing,
+  re-check with `cam --list` + a 720p capture before blaming the browser.
+* **Stuck at "Starting camera"** (Meet green room and friends) → the camera
+  is held by another live stream or the ISP is wedged. Ladder:
+  1. Close every camera tab in *all* browsers (CAMSS allows one client);
+     `wpctl status` → Streams: an `[active]` Video stream means someone
+     still holds it.
+  2. `systemctl --user restart wireplumber pipewire` (as your user) and
+     retry.
+  3. Hardware check: `cam -c 1 -s width=1280,height=720,role=viewfinder
+     --capture=1 --file=/tmp/t.ppm` — if `cam` itself hangs, the sensor/ISP
+     is wedged: `sudo scripts/pipa-camera-recover.sh`; if modules are
+     "still in use", reboot.
+  Prevention: do not suspend while a call is active, and avoid closing tabs
+  mid-stream — both wedge CAMSS.
+* **Both browsers say "camera not found" at the same time** → the camera
+  dropped out of PipeWire enumeration or the user audio units are down
+  (note the mic often "disappears" too). Check, in order:
+  `systemctl --user status wireplumber pipewire` (dead? → `systemctl --user
+  restart pipewire pipewire-pulse wireplumber`), then `wpctl status` — the
+  two "Built-in … Camera" sources must be listed; if missing,
+  `systemctl --user restart wireplumber`, wait 3 s, re-check. The recover
+  script's capture test only proves the *hardware* — `cam` bypasses
+  PipeWire entirely, so "works as-is" does not mean browsers can see it.
+* **Zombie WirePlumber**: after restarting `pipewire`, WirePlumber can stay
+  "active (running)" while exporting nothing — `wpctl status` shows only
+  Dummy Output and an empty Video section. A WirePlumber that survived a
+  pipewire restart is broken; ALWAYS `systemctl --user restart wireplumber`
+  after touching pipewire, then re-check `wpctl status`. Browsers that were
+  open during the dead window still hold stale device lists: fully quit
+  them (`pkill firefox` / `pkill brave`) before their next call.
+* **Only one call app can hold the camera at a time** — a Meet green room
+  open in Firefox plus a Messenger call in Brave will always leave one of
+  them without a camera. Close one before joining the other. And after any
+  PipeWire/WirePlumber restart, fully leave and rejoin the call: live calls
+  never re-enumerate devices.
+* Check the site's camera permission in the lock-icon menu (facebook.com,
+  meet.google.com) — a blocked permission looks exactly like a dead camera.

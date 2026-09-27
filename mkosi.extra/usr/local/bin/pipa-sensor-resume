@@ -1,0 +1,56 @@
+#!/bin/bash
+# Bring the pipa sensor stack back after suspend/resume.
+#
+# Runs from pipa-sensor-resume.service (After=suspend.target, i.e. post
+# resume). iio-sensor-proxy is conflict-stopped by then; hexagonrpcd-sdsp has
+# kept running but its FastRPC session may be stale. Deterministic sequence:
+# fresh tunnel -> persist check -> real DSP sample -> start the proxy.
+set -u
+
+LOG_TAG=pipa-sensor-resume
+log() { logger -t "$LOG_TAG" "$@"; }
+
+# 1. Fresh FastRPC tunnel. start (not restart) also works if the daemon
+#    already died; Restart=always covers crashes at any other time.
+systemctl start --no-block hexagonrpcd-sdsp.service 2>/dev/null || true
+
+tries=0
+while [ "$tries" -lt 40 ]; do          # up to 10s
+	systemctl is-active --quiet hexagonrpcd-sdsp.service && break
+	tries=$((tries + 1))
+	sleep 0.25
+done
+
+if ! systemctl is-active --quiet hexagonrpcd-sdsp.service; then
+	log "hexagonrpcd-sdsp did not come back after resume"
+	exit 0
+fi
+
+# 2. Persist layout (cheap, idempotent) — the SensorPD may want to rewrite
+#    its registry right after re-attaching.
+/usr/local/bin/pipa-prepare-sensor-persist >/dev/null 2>&1 || true
+
+# 3. Gate on a real accelerometer sample so the proxy's discovery and the
+#    first claim land on a working DSP (usually ready in 1-3s after resume).
+ready=0
+if command -v ssccli >/dev/null 2>&1; then
+	tries=0
+	while [ "$tries" -lt 30 ]; do      # up to 15s
+		if ssccli --sensor accelerometer --timeout 1 >/dev/null 2>&1; then
+			ready=1
+			break
+		fi
+		tries=$((tries + 1))
+		sleep 0.5
+	done
+fi
+
+# 4. Back up. Typical worst case is a few seconds, versus 10-15s of the old
+#    blind sleep+restart hook.
+systemctl reset-failed iio-sensor-proxy.service 2>/dev/null || true
+if systemctl start iio-sensor-proxy.service 2>/dev/null ||
+	systemctl restart iio-sensor-proxy.service 2>/dev/null; then
+	log "sensor stack back up (accelerometer ready=$ready)"
+else
+	log "failed to start iio-sensor-proxy after resume"
+fi
