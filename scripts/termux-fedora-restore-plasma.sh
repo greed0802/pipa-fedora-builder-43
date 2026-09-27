@@ -64,9 +64,19 @@ chmod 644 "$MNT/etc/sddm.conf.d/zz-autologin.conf"
 rm -f "$MNT/etc/systemd/system/pipa-backlight.service" \
       "$MNT/etc/systemd/system/multi-user.target.wants/pipa-backlight.service"
 
+# 6. keep sshd enabled - with no keyboard, an SSH app on a phone is the terminal
+ln -sfn /usr/lib/systemd/system/sshd.service \
+    "$MNT/etc/systemd/system/multi-user.target.wants/sshd.service"
+
+# 7. pin the kernel: niri-install runs dnf, which updated kernel-pipa once and
+#    left it out of sync with boot.img. Never let dnf touch the kernel again.
+if [ -f "$MNT/etc/dnf/dnf.conf" ] && ! grep -q "excludepkgs" "$MNT/etc/dnf/dnf.conf"; then
+    printf 'excludepkgs=kernel-pipa*\n' >> "$MNT/etc/dnf/dnf.conf"
+fi
+
 umount "$MNT"
 echo
 echo "Fixed. Boot Fedora again:"
 echo "  PC:        fastboot set_active b && fastboot reboot"
-echo "  Magisk:    su -c 'setprop sys.powerctl reboot,bootloader'  then fastboot"
+echo "  BootControl app: set slot b, reboot"
 echo "It will autologin into Plasma (user / 147147 still valid for sudo/ssh)."
