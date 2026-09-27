@@ -38,38 +38,50 @@ reload_modules() {
 
 show_holders() {
   # qcom_camss is pinned: some process still has /dev/video* or /dev/media*
-  # open (a hung `cam`, a camera tab, ...). Show them instead of telling the
-  # user to reboot blind.
+  # open (a stuck browser claim, a hung `cam`, ...). Scan /proc directly —
+  # fuser/lsof are not installed on this image.
   echo "    Devices still held by:" >&2
-  if command -v fuser >/dev/null 2>&1; then
-    fuser -v /dev/video* /dev/media* 2>&1 | sed 's/^/    /' >&2 || true
-  fi
-  if command -v lsof >/dev/null 2>&1; then
-    lsof /dev/video* /dev/media* 2>/dev/null | sed 's/^/    /' >&2 || true
-  fi
-  pgrep -a cam 2>/dev/null | sed 's/^/    cam process: /' >&2 || true
+  local fd tgt pid cmd
+  for fd in /proc/[0-9]*/fd/*; do
+    tgt=$(readlink "$fd" 2>/dev/null) || continue
+    case $tgt in
+      /dev/video*|/dev/media*)
+        pid=${fd#/proc/}; pid=${pid%%/*}
+        cmd=$(tr '\0' ' ' <"/proc/$pid/cmdline" 2>/dev/null)
+        echo "    pid $pid: ${cmd:-[no cmdline]} -> $tgt" >&2 ;;
+    esac
+  done
+}
+
+# Stop the user session's PipeWire family. Sockets and services MUST go in
+# one transaction: stopping services alone races socket activation and the
+# stop jobs get canceled ("Job for pipewire.socket canceled").
+stop_pipewire_family() {
+  as_user systemctl --user stop \
+    pipewire.socket pipewire-pulse.socket \
+    pipewire.service pipewire-pulse.service wireplumber.service || true
+  sleep 1
 }
 
 echo "==> light path: restart WirePlumber only (audio stays up)"
-as_user systemctl --user stop wireplumber || true
+as_user systemctl --user stop wireplumber.service || true
 sleep 1
 
 if reload_modules; then
-  as_user systemctl --user start wireplumber
+  as_user systemctl --user start wireplumber.service
   echo "Recovered the light way. Audio was never touched."
 else
   show_holders
-  echo "==> modules pinned — full path: restart your PipeWire too"
-  as_user systemctl --user stop pipewire-pulse pipewire.socket pipewire || true
-  sleep 1
+  echo "==> modules pinned — full path: stop the whole user PipeWire family"
+  stop_pipewire_family
   if ! reload_modules; then
     show_holders
     echo "Close/kill the processes above and re-run this script." >&2
     echo "If nothing is listed, reboot the Pad (do not rmmod -f)." >&2
-    as_user systemctl --user start pipewire.socket pipewire pipewire-pulse wireplumber || true
+    as_user systemctl --user start pipewire.socket pipewire-pulse.socket pipewire.service pipewire-pulse.service wireplumber.service || true
     exit 1
   fi
-  as_user systemctl --user start pipewire.socket pipewire pipewire-pulse wireplumber
+  as_user systemctl --user start pipewire.socket pipewire-pulse.socket pipewire.service pipewire-pulse.service wireplumber.service
 fi
 
 echo "Recovered. Rules of thumb:"
