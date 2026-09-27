@@ -210,5 +210,18 @@ Browser rules of thumb (same as for Meet):
   never sudo).
 * CAMSS is also flaky after suspend; after heavy suspend/resume testing,
   re-check with `cam --list` + a 720p capture before blaming the browser.
+* **Stuck at "Starting camera"** (Meet green room and friends) → the camera
+  is held by another live stream or the ISP is wedged. Ladder:
+  1. Close every camera tab in *all* browsers (CAMSS allows one client);
+     `wpctl status` → Streams: an `[active]` Video stream means someone
+     still holds it.
+  2. `systemctl --user restart wireplumber pipewire` (as your user) and
+     retry.
+  3. Hardware check: `cam -c 1 -s width=1280,height=720,role=viewfinder
+     --capture=1 --file=/tmp/t.ppm` — if `cam` itself hangs, the sensor/ISP
+     is wedged: `sudo scripts/pipa-camera-recover.sh`; if modules are
+     "still in use", reboot.
+  Prevention: do not suspend while a call is active, and avoid closing tabs
+  mid-stream — both wedge CAMSS.
 * Check the site's camera permission in the lock-icon menu (facebook.com,
   meet.google.com) — a blocked permission looks exactly like a dead camera.
