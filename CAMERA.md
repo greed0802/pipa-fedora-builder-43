@@ -190,7 +190,11 @@ Browser rules of thumb (same as for Meet):
   then lists **"Internal back camera"** (libcamera names) instead of
   `Iris`/`videoN`. Without this the preview is a silent black/white tile.
 * **Firefox** needs `about:config` → `media.webrtc.camera.allow-pipewire =
-  true` for libcamera devices to appear.
+  true` for libcamera devices to appear. — then **fully restart Firefox**
+  (all windows): the PipeWire camera list is only built at startup, so the
+  Meet green room keeps saying "Camera not found" until then. Still stuck?
+  open the camera dropdown once to force a refresh, and test outside Meet
+  at mozilla.github.io/webrtc-landing (Camera button).
 * Pick **one** camera in the site's video settings *before* joining — this
   build has no working front camera (HI846 lists but STREAMON fails), and a
   failed front-camera open holds the ISP and kills the rear one too.
