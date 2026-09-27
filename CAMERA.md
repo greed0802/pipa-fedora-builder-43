@@ -92,6 +92,13 @@ uname -r   # 7.1.7-pipa-cam+
 cam --list
 ```
 
+Live-verified (2026-09): rear OV13B10 captures 720p @ 120 fps via the soft
+ISP; a **Messenger video call in Brave** (with `#enable-pipewire-camera`
+enabled) streams the rear camera — `wpctl status` shows the libcamera
+cameras as WirePlumber sources and the back camera as the configured
+default. `cam --file` needs the `=` form (`--file=/tmp/x.ppm`): `-F` and
+`-C` are optional-argument options and only take a value with `=`.
+
 ```
 Available cameras:
 1: Internal front camera (.../cci@ac50000/i2c-bus@1/camera@20)   # hi846
