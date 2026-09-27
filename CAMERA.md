@@ -198,11 +198,20 @@ Browser rules of thumb (same as for Meet):
   Meet green room keeps saying "Camera not found" until then. Still stuck?
   open the camera dropdown once to force a refresh, and test outside Meet
   at mozilla.github.io/webrtc-landing (Camera button).
-* Pick **one** camera in the site's video settings *before* joining — this
-  build has no working front camera (HI846 lists but STREAMON fails), and a
-  failed front-camera open holds the ISP and kills the rear one too.
-  If both die mid-call: `sudo scripts/pipa-camera-recover.sh` (module
-  reload + your PipeWire restarted), or reboot.
+* Pick **one** camera in the site's video settings *before* joining /
+  enabling video — **both cameras stream** (rear OV13B10, front HI846 when
+  pre-selected), but CAMSS runs one sensor at a time: the mid-call flip
+  button can hold the ISP and kill both cameras (rear too). If that happens:
+  `sudo scripts/pipa-camera-recover.sh`, or reboot; then rejoin with the
+  camera pre-selected.
+* **Handing the camera to the next app after a call** → if the other browser
+  hangs at "Starting camera", the previous stream ended uncleanly (killed
+  tab, crash) and the sensor is still pinned. Run
+  `sudo scripts/pipa-camera-recover.sh`: it tries the light path first
+  (WirePlumber restart only — audio keeps playing) and escalates to a full
+  PipeWire restart only if the kernel modules are pinned. End calls with
+  the app's Leave button instead of killing tabs and the handoff usually
+  needs nothing at all.
 * Debugging: `pw-cli` ships in the `pipewire-utils` package (not installed
   by this image); `wpctl status` (installed) has a Video section listing
   the libcamera cameras WirePlumber exposes. If the Video section is
