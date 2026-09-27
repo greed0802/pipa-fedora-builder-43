@@ -232,5 +232,19 @@ Browser rules of thumb (same as for Meet):
      "still in use", reboot.
   Prevention: do not suspend while a call is active, and avoid closing tabs
   mid-stream — both wedge CAMSS.
+* **Both browsers say "camera not found" at the same time** → the camera
+  dropped out of PipeWire enumeration or the user audio units are down
+  (note the mic often "disappears" too). Check, in order:
+  `systemctl --user status wireplumber pipewire` (dead? → `systemctl --user
+  restart pipewire pipewire-pulse wireplumber`), then `wpctl status` — the
+  two "Built-in … Camera" sources must be listed; if missing,
+  `systemctl --user restart wireplumber`, wait 3 s, re-check. The recover
+  script's capture test only proves the *hardware* — `cam` bypasses
+  PipeWire entirely, so "works as-is" does not mean browsers can see it.
+* **Only one call app can hold the camera at a time** — a Meet green room
+  open in Firefox plus a Messenger call in Brave will always leave one of
+  them without a camera. Close one before joining the other. And after any
+  PipeWire/WirePlumber restart, fully leave and rejoin the call: live calls
+  never re-enumerate devices.
 * Check the site's camera permission in the lock-icon menu (facebook.com,
   meet.google.com) — a blocked permission looks exactly like a dead camera.
