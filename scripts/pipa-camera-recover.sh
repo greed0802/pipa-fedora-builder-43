@@ -41,4 +41,4 @@ as_user systemctl --user start pipewire.socket pipewire pipewire-pulse wireplumb
 echo "Recovered. Do not hot-switch cameras in Meet."
 echo "Front: start the call with Internal front already selected."
 echo "Back:  start the call with Internal back already selected."
-echo "Test front only:  cam -c 2 -s width=1280,height=720 -C 20"
+echo "Test front only:  cam -c 2 -s width=1280,height=720 --capture=20"

@@ -104,7 +104,7 @@ Rectangle / IPA-helper warnings are noise.
 # qcam always picks max Bayer (rear 4208×3120) and dies:
 #   Failed to allocate capture buffers (dma-heap)
 # CmaTotal 128 MiB is still too small for 13 MP. Use 720p:
-cam -c 1 -s width=1280,height=720,role=viewfinder --capture=5 -F /tmp/back-#.ppm
+cam -c 1 -s width=1280,height=720,role=viewfinder --capture=5 --file=/tmp/back-#.ppm
 ```
 
 Meet / Firefox: **Built-in Back Camera** or **Built-in Front Camera** (libcamera).
@@ -176,13 +176,25 @@ ls -l /dev/dma_heap/   # expect video:video 0660 + linux,cma -> default_cma_regi
 
 Browser rules of thumb (same as for Meet):
 
+* **Chromium/Brave/Chrome** grab raw `/dev/video*` V4L2 nodes by default —
+  useless on CAMSS (the ISP is only configured by libcamera). Enable the
+  PipeWire camera: `brave://flags/#enable-pipewire-camera` (or
+  `chrome://flags/...`) → **Enabled** → relaunch. The site's camera picker
+  then lists **"Internal back camera"** (libcamera names) instead of
+  `Iris`/`videoN`. Without this the preview is a silent black/white tile.
+* **Firefox** needs `about:config` → `media.webrtc.camera.allow-pipewire =
+  true` for libcamera devices to appear.
 * Pick **one** camera in the site's video settings *before* joining — this
   build has no working front camera (HI846 lists but STREAMON fails), and a
   failed front-camera open holds the ISP and kills the rear one too.
   If both die mid-call: `sudo scripts/pipa-camera-recover.sh` (module
   reload + your PipeWire restarted), or reboot.
+* Debugging: `pw-cli` ships in the `pipewire-utils` package (not installed
+  by this image); `wpctl status` (installed) has a Video section listing
+  the libcamera cameras WirePlumber exposes. If the Video section is
+  empty: `systemctl --user restart wireplumber pipewire` (as *your* user,
+  never sudo).
 * CAMSS is also flaky after suspend; after heavy suspend/resume testing,
   re-check with `cam --list` + a 720p capture before blaming the browser.
-* Firefox uses PipeWire for cameras on Wayland (`pw-cli ls Node | grep -i
-  camera` should show a libcamera node); check facebook.com's camera
-  permission in the lock-icon menu.
+* Check the site's camera permission in the lock-icon menu (facebook.com,
+  meet.google.com) — a blocked permission looks exactly like a dead camera.
