@@ -241,6 +241,13 @@ Browser rules of thumb (same as for Meet):
   `systemctl --user restart wireplumber`, wait 3 s, re-check. The recover
   script's capture test only proves the *hardware* — `cam` bypasses
   PipeWire entirely, so "works as-is" does not mean browsers can see it.
+* **Zombie WirePlumber**: after restarting `pipewire`, WirePlumber can stay
+  "active (running)" while exporting nothing — `wpctl status` shows only
+  Dummy Output and an empty Video section. A WirePlumber that survived a
+  pipewire restart is broken; ALWAYS `systemctl --user restart wireplumber`
+  after touching pipewire, then re-check `wpctl status`. Browsers that were
+  open during the dead window still hold stale device lists: fully quit
+  them (`pkill firefox` / `pkill brave`) before their next call.
 * **Only one call app can hold the camera at a time** — a Meet green room
   open in Firefox plus a Messenger call in Brave will always leave one of
   them without a camera. Close one before joining the other. And after any
