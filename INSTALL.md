@@ -77,3 +77,44 @@ Your partition name is `linux` if that is what GPT shows.
 - `linux` as a partition name is fine too: pass `--partition linux`.
 
 </details>
+
+## Upgrading from Fedora 44 to Fedora 45
+
+There are two safe ways to move an existing pipa Fedora 44 install to Fedora 45.
+**Back up your data first** (home directory, important configs, app data). Cross-release
+upgrades on mobile hardware carry more risk than desktop upgrades.
+
+### Recommended: reflash the Fedora 45 image
+
+This is the cleanest path and avoids in-place upgrade issues.
+
+1. Build or download the Fedora 45 image (`boot.img` + `root.img`).
+2. Back up anything you care about from the device.
+3. Flash the new image using the same path you used originally:
+   - Singleboot: `./scripts/flash.sh singleboot --boot boot.img --root root.img`
+   - Dualboot (partition already exists): `./scripts/flash.sh dualboot --boot boot.img --root root.img --partition fedora`
+4. After first boot, change the default passwords (`user` / `root`).
+
+### Advanced: in-place upgrade with dnf system-upgrade
+
+Only attempt this if you are comfortable recovering from a bad boot. Make sure you have
+a working fastboot setup and a known-good image before starting.
+
+```bash
+# On the device, as root:
+sudo dnf upgrade --refresh
+sudo dnf install dnf-plugin-system-upgrade
+sudo dnf system-upgrade download --releasever=45
+sudo dnf system-upgrade reboot
+```
+
+After the upgrade completes:
+
+- Confirm the release: `cat /etc/os-release`
+- Update packages: `sudo dnf upgrade --refresh`
+- Reboot once more and verify Wi-Fi, GPU, audio, touch, and suspend.
+- If the boot image/kernel comes from a COPR package, confirm the F45 package installed
+  cleanly and the active boot slot has the expected kernel.
+
+If the system fails to boot after an in-place upgrade, boot fastboot and reflash a known-good
+`boot.img` (and `root.img` if needed). Keep the old Fedora 44 image around until F45 is verified.

@@ -1,1 +1,1 @@
-root=UUID=ROOTFS_UUID_PLACEHOLDER fbcon=rotate:1 splash quiet
+root=UUID=ROOTFS_UUID_PLACEHOLDER fbcon=rotate:1 psi=1 splash quiet

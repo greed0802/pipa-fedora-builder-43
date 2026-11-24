@@ -30,7 +30,7 @@ from `dnf` flash the *active* slot, so stay on slot B while you are in Fedora.
 **You cannot keep Android's current userdata.** Shrinking `userdata` on an FBE
 device destroys the encrypted Android data. Back up first.
 
-The Fedora 44 images themselves are the same for singleboot and dualboot.
+The Fedora 45 images themselves are the same for singleboot and dualboot.
 What changes is the GPT and which slot you flash. Follow the steps in order.
 Do not run a batch of commands you have not read.
 

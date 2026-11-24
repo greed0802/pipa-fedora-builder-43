@@ -8,7 +8,7 @@ image_mnt='mnt_image'
 date=$(date +%Y%m%d)
 de_name="${1:-}"
 mkosi_profile=""
-os_release='fedora-44'
+os_release='fedora-45'
 release_type='stable'
 
 get_de_name() {
@@ -29,6 +29,10 @@ get_de_name() {
         gnome)
             echo "### Gnome chosen"
             mkosi_profile="gnome"
+            ;;
+        xfce)
+            echo "### Xfce chosen"
+            mkosi_profile="xfce"
             ;;
         custom)
             echo "### Custom profile chosen"
@@ -181,6 +185,8 @@ make_image() {
     arch-chroot $image_mnt systemctl enable tuned.service
     # echo "### DEBUG: tuned-ppd.service"
     arch-chroot $image_mnt systemctl enable tuned-ppd.service
+    # echo "### DEBUG: systemd-oomd.service"
+    arch-chroot $image_mnt systemctl enable systemd-oomd.service
     echo "### Setting default systemd target"
     if [[ -n "$mkosi_profile" ]]; then
         arch-chroot "$image_mnt" systemctl set-default graphical.target
@@ -194,6 +200,8 @@ make_image() {
         arch-chroot $image_mnt systemctl enable --force plasmalogin.service
     elif [[ "$mkosi_profile" == "gnome" ]]; then
         arch-chroot $image_mnt systemctl enable gdm.service
+    elif [[ "$mkosi_profile" == "xfce" ]]; then
+        arch-chroot $image_mnt systemctl enable lightdm.service
     fi
 
     echo "### Disabling systemd-firstboot"

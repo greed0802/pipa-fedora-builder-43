@@ -1,4 +1,4 @@
-FROM fedora:44
+FROM fedora:45
 
 RUN dnf update -y && dnf install -y bash arch-install-scripts bubblewrap systemd-container zip python3-pip dosfstools e2fsprogs rsync util-linux which mkosi cpio mkbootimg lz4 gzip
 

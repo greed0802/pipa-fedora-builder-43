@@ -2,7 +2,7 @@
 # Build a Fedora image for Xiaomi Pad 6 (pipa) with Docker.
 #
 # Usage:
-#   ./scripts/build-image.sh [tty|plasma|plasma-mobile|gnome|custom]
+#   ./scripts/build-image.sh [tty|plasma|plasma-mobile|gnome|xfce|custom]
 #
 # Images are written to ./images/. This needs Docker, ~20 GiB free disk,
 # and --privileged (loop mounts + binfmt). Cross-building on x86_64 also
@@ -14,13 +14,13 @@ flavor="${1:-plasma}"
 image_tag="${PIPA_BUILDER_TAG:-pipa-fedora-builder}"
 
 case "$flavor" in
-    tty|plasma|plasma-mobile|gnome|custom) ;;
+    tty|plasma|plasma-mobile|gnome|xfce|custom) ;;
     -h|--help)
-        echo "Usage: $0 [tty|plasma|plasma-mobile|gnome|custom]"
+        echo "Usage: $0 [tty|plasma|plasma-mobile|gnome|xfce|custom]"
         exit 0
         ;;
     *)
-        echo "Unknown flavor '$flavor' (tty, plasma, plasma-mobile, gnome, custom)" >&2
+        echo "Unknown flavor '$flavor' (tty, plasma, plasma-mobile, gnome, xfce, custom)" >&2
         exit 1
         ;;
 esac

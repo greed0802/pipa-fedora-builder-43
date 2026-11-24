@@ -1,4 +1,4 @@
-# Fedora Linux 44 for the Xiaomi Pad 6 (pipa)
+# Fedora Linux 45 for the Xiaomi Pad 6 (pipa)
 
 [![](https://img.shields.io/badge/Pipa%20Linux%20Wiki-8A2BE2)](https://rr1111.github.io/pipa-linux-wiki)
 [![](https://img.shields.io/badge/Releases-0000FF)](https://github.com/rr1111/pipa-fedora-builder-43/releases)
@@ -10,6 +10,8 @@
 - Minimal KDE Plasma (recommended) or KDE Plasma Mobile Desktops
 
 - Minimal Gnome Desktop
+
+- Minimal Xfce Desktop
 
 - TTY with essentials
   - No WM or DE preinstalled
@@ -29,6 +31,13 @@
 ./scripts/flash.sh singleboot --boot boot.img --root root.img
 ./scripts/flash.sh dualboot   --boot boot.img --root root.img   # needs GPT partition "fedora"
 ```
+
+### Fedora 45 upgrade notes
+
+- **Builder target:** this branch builds Fedora 45 images (`mkosi.conf` release, Docker base image, image naming, and release workflows updated).
+- **Safe upgrade path from F44:** back up data first. The cleanest path is to reflash a Fedora 45 image; in-place `dnf system-upgrade --releasever=45` is possible but higher risk on tablet/custom-kernel hardware. See [INSTALL.md](./INSTALL.md#upgrading-from-fedora-44-to-fedora-45).
+- **Memory/stability tuning:** images ship a zram-generator config, memory sysctls, proactive `systemd-oomd` settings, and a capped journal size to reduce RAM pressure/flakiness on 6/8 GB pipa devices. `psi=1` is enabled on the kernel cmdline for oomd pressure monitoring.
+- **COPR dependency check:** kernel and pipa-specific packages come from external COPRs (`pocketblue/common`, `pocketblue/sm8250`, `reyr111/pipa-packages`). Before building or upgrading, confirm those repos publish Fedora 45 (`$releasever=45`) packages for `aarch64`, especially `pipa-metapkg` and the pipa kernel.
 
 ### Kernel Status:
 | Sleep | Speakers | Mic | WLAN | Bluetooth | (Fast) Charging | Battery Status | Hall | Display | Brightness | Touch | GPU | USB (Host/Client) | DP alt mode | UFS | Back Camera | Front Camera | Sensors | Xiaomi Keyboard | Pen | Hall Sensor
