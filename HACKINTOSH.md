@@ -68,8 +68,8 @@ or necessarily a complete list of physical components.
 
 ### Existing work worth examining, not installing
 
-* [UniXNU-pipa](https://github.com/xVanTuring/UniXNU-pipa/tree/cdb3d62771e31d48d832853ee0c90964346d78da) contains a pipa-specific XNU research configuration and candidate UFS, GPU and touch work. Its authors explicitly say it was **not run on pipa hardware**. Source and build artifacts are not proof of a working boot or drivers.
-* [uefi-pipa](https://github.com/xVanTuring/uefi-pipa/tree/1f6a1520f84c699a6f748e7b0b0ee72b79c7997b) is a related experimental UEFI fork; it also says it has **not been run on hardware**. A vendor UEFI component or a partition named `uefivarstore` does not establish macOS compatibility.
+* [UniXNU-pipa](https://github.com/xVanTuring/UniXNU-pipa/tree/cdb3d62771e31d48d832853ee0c90964346d78da) contains pipa-specific XNU, UFS, GPU and touch work. Its README reports booting **iPadOS 17.7.11** on a Pad 6 with working display and touch, and experimental GPU acceleration. These are upstream reports, not independently verified here, and are not a macOS boot. Audio and networking are reported unavailable. Some comments still say untested, contradicting the newer README.
+* [uefi-pipa](https://github.com/xVanTuring/uefi-pipa/tree/1f6a1520f84c699a6f748e7b0b0ee72b79c7997b) is a related experimental UEFI fork. UniXNU-pipa reports reaching its menu on hardware with this revision, although the UEFI repository description still says untested. A vendor UEFI component or a partition named `uefivarstore` does not establish macOS compatibility.
 * [Snapintosh](https://github.com/Snapintosh/Snapintosh/tree/940eeb95ba637528dc45ba098e6b8091163dd489) describes a macOS boot and Adreno stack for an **ASUS Snapdragon X2 Elite laptop**, not pipa's Snapdragon 870. It is a reference for research, not a compatible pipa image. Its components have different licenses; inspect their licenses and third-party notices before reuse.
 * [pipa-mainline/linux](https://github.com/pipa-mainline/linux) is useful for hardware initialization and Linux device descriptions, not as a drop-in macOS driver. Observe the applicable licenses when studying or reusing code.
 
@@ -78,3 +78,36 @@ then a separately reviewed recovery plan and controlled hardware experiments.
 No candidate image in these links has been validated by this project. Do not
 flash firmware, resize partitions, or run write-capable UFS tests as a result of
 this inventory. Successful compilation would not mean a safe or working boot.
+
+### Offline source review and host tests (2026-11-25)
+
+Reviewed UniXNU-pipa commit `cdb3d62771e31d48d832853ee0c90964346d78da`
+from a shallow clone. The actual README has newer hardware reports than the
+repository summary returned by search; the prior statement that its authors
+said nothing had run on hardware was incorrect. We have not independently
+verified those reports. Its documented target is iPadOS, not macOS.
+
+On an x86-64 Linux host, using `cc -std=c11 -Wall -Wextra -Werror` on each
+standalone file, `ButtonsTests`, `TouchBoardTests`, `NativeBatteryTests`,
+`GpuPowerBoardTests`, and `GesturesTests` built and passed. These test helper
+logic and simulated state only; they do not build XNU or validate hardware.
+`A650GmuTests` could not compile standalone because `AdrenoHfiStartup.h`
+was unavailable; it needs its additional kit/build dependencies. Full
+firmware/kernel builds were not attempted: the environment lacks clang, lld,
+cmake, ninja, dtc and mtools, and the documented workflow also requires
+additional source trees, vendor inputs, and an iPadOS IPSW. No Apple or vendor
+firmware was downloaded.
+
+**Data-loss warning:** upstream's `board.toml` hard-codes another tablet's
+userdata LBAs and RAM layout, and its README describes flashing an image to
+`userdata`, which erases Android data. Your inventory shows `userdata` as
+`sda34` and Fedora `linux` as `sda35`; neither is free space. Do not run its
+`fastboot flash userdata`, kernel-round script, or other device-writing steps.
+The project also describes untested battery code and a possible charger
+watchdog issue. A build or host-test pass does not make these safe.
+
+Next research gate: inspect the exact pinned driver sources and their licenses,
+reproduce isolated build and unit tests with dependencies, and assess whether
+the iPadOS-specific approach can inform a *separate* macOS target. Device
+geometry, recovery, and an explicitly approved non-destructive test plan
+would be prerequisites for any later hardware work.
