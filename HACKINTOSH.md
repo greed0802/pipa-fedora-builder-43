@@ -111,3 +111,43 @@ reproduce isolated build and unit tests with dependencies, and assess whether
 the iPadOS-specific approach can inform a *separate* macOS target. Device
 geometry, recovery, and an explicitly approved non-destructive test plan
 would be prerequisites for any later hardware work.
+
+### Pinned driver-source tests (2026-11-25)
+
+Reviewed pinned submodules PipaUfs `5c64c012`, PipaNovatekTouch `0025115b`,
+Adreno650 `01db67e0`, AdrenoMetal `2ff4be9e`, and ArmSmmu4K `6d4441db`.
+Their component LICENSE files respectively name BSD 2-Clause, Apache-2.0,
+MIT, MIT and MIT. Some individual UFS test files declare
+`BSD-2-Clause-Patent`; inspect individual headers, notices, dependencies and
+licenses before any redistribution. Nothing from these repositories is copied
+into this project.
+
+In addition to the five board tests above, host-side Novatek point, protocol
+and touch-core model tests passed; firmware-specific cases were skipped. UFS
+root-publication and diagnostic fixture tests and 14 descriptor comparisons
+passed. The diagnostic intentionally prints `UFS ROOT FAILURE` as **fixture
+output**, not a real tablet failure. These tests use synthetic inputs and do
+not exercise storage devices, hardware or macOS. The RootLayout test could not
+build here without OpenSSL headers; RootWindowRead failed to compile with this
+host's GCC due to differing integer types in an initializer list. Novatek
+sources also trigger GCC warnings when compiled with `-Werror`, so those
+model tests were compiled without it. No claim is made about full driver builds.
+
+To reproduce just these host tests on a development machine with Git, Python 3,
+a C and C++ compiler, and network access to GitHub, after reviewing upstream
+code (the script executes compiled upstream source):
+
+```sh
+git clone https://github.com/xVanTuring/UniXNU-pipa.git /tmp/UniXNU-pipa-research
+git -C /tmp/UniXNU-pipa-research checkout --detach cdb3d62771e31d48d832853ee0c90964346d78da
+git -C /tmp/UniXNU-pipa-research submodule update --init drivers/PipaUfs drivers/PipaNovatekTouch
+sh tests/test-upstream-pipa.sh /tmp/UniXNU-pipa-research
+```
+
+The harness checks the parent and selected submodule revisions and tracked
+modifications before compiling. It creates temporary binaries and removes them;
+it does not flash or run upstream device commands. A Git revision check is not
+a security audit. No real firmware, root image, sanitizer, ARM cross-compiler,
+or device is used. To continue toward macOS, first resolve the separate
+macOS boot and platform interface problem; successful iPadOS model tests are
+not evidence that an iPadOS driver is compatible with macOS.
