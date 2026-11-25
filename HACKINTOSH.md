@@ -39,3 +39,13 @@ There are no working kexts, patched macOS kernel, EFI, installer, or partitionin
 * If the goal is only the appearance of macOS, customize the Fedora desktop rather than changing the boot chain.
 
 References: [OpenCore documentation](https://github.com/acidanthera/OpenCorePkg/tree/master/Docs), [Linux pipa kernel](https://github.com/pipa-mainline/linux), and [Apple software licenses](https://www.apple.com/legal/sla/).
+
+### More detailed one-shot inventory
+
+Run `python3 scripts/pipa-compat-check.py` on Fedora. This read-only, best-effort
+checker collects Linux device-tree compatible strings, drivers, display, storage
+layout, audio, networking, input, sensor, power and bus details. It requires
+Python 3; `lsblk`, `lspci`, or individual sysfs entries may be unavailable.
+It does not determine macOS driver availability or installation readiness.
+Review the output before sharing: partition labels and USB product names can
+reveal personal details. The tool omits MAC addresses, serial numbers and UUIDs.
