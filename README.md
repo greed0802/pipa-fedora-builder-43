@@ -11,6 +11,8 @@
 
 - Minimal Gnome Desktop
 
+- Minimal Gnome + Niri Desktop (GNOME apps/session + Niri Wayland compositor preinstalled)
+
 - Minimal Xfce Desktop
 
 - TTY with essentials

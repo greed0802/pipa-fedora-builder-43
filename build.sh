@@ -30,6 +30,10 @@ get_de_name() {
             echo "### Gnome chosen"
             mkosi_profile="gnome"
             ;;
+        gnome-niri)
+            echo "### Gnome + Niri chosen"
+            mkosi_profile="gnome-niri"
+            ;;
         xfce)
             echo "### Xfce chosen"
             mkosi_profile="xfce"
@@ -198,7 +202,7 @@ make_image() {
         arch-chroot $image_mnt systemctl enable --force plasmalogin.service
     elif [[ "$mkosi_profile" == "plasma-mobile" ]]; then
         arch-chroot $image_mnt systemctl enable --force plasmalogin.service
-    elif [[ "$mkosi_profile" == "gnome" ]]; then
+    elif [[ "$mkosi_profile" == "gnome" ]] || [[ "$mkosi_profile" == "gnome-niri" ]]; then
         arch-chroot $image_mnt systemctl enable gdm.service
     elif [[ "$mkosi_profile" == "xfce" ]]; then
         arch-chroot $image_mnt systemctl enable lightdm.service

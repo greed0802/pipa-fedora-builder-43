@@ -16,7 +16,7 @@ cd pipa-fedora-builder-43
 ./scripts/build-image.sh plasma
 ```
 
-Flavors: `tty`, `gnome`, `plasma` (default), `plasma-mobile`, `xfce`, `custom`.
+Flavors: `tty`, `gnome`, `gnome-niri`, `plasma` (default), `plasma-mobile`, `xfce`, `custom`.
 Images land in `images/` as a directory plus a zip (`boot.img` + `root.img`).
 
 ### Manual docker commands
