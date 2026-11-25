@@ -49,3 +49,32 @@ Python 3; `lsblk`, `lspci`, or individual sysfs entries may be unavailable.
 It does not determine macOS driver availability or installation readiness.
 Review the output before sharing: partition labels and USB product names can
 reveal personal details. The tool omits MAC addresses, serial numbers and UUIDs.
+
+## Research update: a Fedora pipa inventory (2026-11-25)
+
+A Pad 6 inventory supplied by a user identified the following. Device-tree
+compatibles identify what that Linux boot describes, not verified macOS support
+or necessarily a complete list of physical components.
+
+| Area | Linux observations | macOS research gap |
+| --- | --- | --- |
+| Boot | SM8250 device tree; EFI runtime not exposed in this boot | A different boot environment may be possible; absence of EFI runtime here does not prove firmware cannot be built. XNU and boot-chain integration remain untested on this device. |
+| Storage | `qcom,sm8250-ufshc`; Linux saw an Android `userdata` and an ext4 `linux` partition | UFS initialization, DMA/IOMMU, block I/O and APFS access require independent validation. Neither partition is a safe install target. |
+| Display / GPU | SM8250 DPU, DSI panel `xiaomi,pipa-nt36532`, 1800x2880; Adreno 650.2 | Panel initialization, framebuffer handoff, GPU and Metal support need device-specific proof. A DRM card identifying DPU alone is not proof of accelerated rendering. |
+| Audio | `snd-sm8250`, WCD9380, SoundWire | Codec, DSP, amplifier and routing integration have not been verified for macOS. |
+| Wireless | QCA6390 Wi-Fi `17cb:1101` using `ath11k_pci`; Bluetooth `qca6390-bt` using `hci_uart_qca` | Linux drivers cannot simply be installed as macOS drivers; native support is unverified. |
+| Input and cameras | Novatek SPI touchscreen/pen; DT nodes for OV13B10 and HI846 | Device-tree entries and input enumeration do not prove macOS operation or even camera functionality in Linux. |
+| Sensors and power | No IIO devices visible; PM8150-family charging, fuel gauge and thermal devices visible | Sensor enumeration, charging, thermal and sleep behavior remain to be tested; do not infer absent hardware from an empty IIO class. |
+
+### Existing work worth examining, not installing
+
+* [UniXNU-pipa](https://github.com/xVanTuring/UniXNU-pipa/tree/cdb3d62771e31d48d832853ee0c90964346d78da) contains a pipa-specific XNU research configuration and candidate UFS, GPU and touch work. Its authors explicitly say it was **not run on pipa hardware**. Source and build artifacts are not proof of a working boot or drivers.
+* [uefi-pipa](https://github.com/xVanTuring/uefi-pipa/tree/1f6a1520f84c699a6f748e7b0b0ee72b79c7997b) is a related experimental UEFI fork; it also says it has **not been run on hardware**. A vendor UEFI component or a partition named `uefivarstore` does not establish macOS compatibility.
+* [Snapintosh](https://github.com/Snapintosh/Snapintosh/tree/940eeb95ba637528dc45ba098e6b8091163dd489) describes a macOS boot and Adreno stack for an **ASUS Snapdragon X2 Elite laptop**, not pipa's Snapdragon 870. It is a reference for research, not a compatible pipa image. Its components have different licenses; inspect their licenses and third-party notices before reuse.
+* [pipa-mainline/linux](https://github.com/pipa-mainline/linux) is useful for hardware initialization and Linux device descriptions, not as a drop-in macOS driver. Observe the applicable licenses when studying or reusing code.
+
+A sensible sequence is source and license review, then offline builds and tests,
+then a separately reviewed recovery plan and controlled hardware experiments.
+No candidate image in these links has been validated by this project. Do not
+flash firmware, resize partitions, or run write-capable UFS tests as a result of
+this inventory. Successful compilation would not mean a safe or working boot.
