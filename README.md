@@ -23,6 +23,7 @@
 #### [Installation guide](./INSTALL.md)
 #### [Dualboot Android + Fedora](./DUALBOOT.md)
 #### [Image building guide](./BUILD.md)
+#### [macOS / Hackintosh feasibility on pipa](./HACKINTOSH.md)
 
 ```bash
 ./scripts/build-image.sh plasma          # Docker build → images/
