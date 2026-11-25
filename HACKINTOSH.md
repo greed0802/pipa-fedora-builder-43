@@ -151,3 +151,31 @@ a security audit. No real firmware, root image, sanitizer, ARM cross-compiler,
 or device is used. To continue toward macOS, first resolve the separate
 macOS boot and platform interface problem; successful iPadOS model tests are
 not evidence that an iPadOS driver is compatible with macOS.
+
+### Boot, storage, GPU and touch: decision gate (2026-11-25)
+
+**Decision: no macOS installation is ready for this Pad 6.** The checker
+identifies the SM8250, Adreno 650, NT36532 panel/touch and UFS controller, but
+no macOS-specific pipa boot, accelerated GPU driver, touch driver, or safe
+installation path has been demonstrated by this repository. Linux hardware
+detection, a shared ARM architecture, and upstream's iPadOS reports do not
+establish those claims. We do not have direct access to the tablet, recovery
+hardware or macOS build inputs, so a conclusive hardware-function verdict is
+not possible here.
+
+| Gate | Current evidence | What must be shown before advancing |
+| --- | --- | --- |
+| Boot | UniXNU-pipa reports its UEFI menu and an iPadOS boot on another pipa, not macOS. This tablet booted Fedora without an exposed EFI runtime. | A reproducible pipa **macOS** boot design and legitimate inputs, plus a reviewed recovery plan. Do not assume another tablet's memory map is applicable. |
+| Target / root | The inventory labels sda34 `userdata` and sda35 `linux`. UniXNU-pipa's hard-coded root uses `userdata` and its documented flash destroys Android data. | A separately allocated target and verified block geometry, backups and recovery; a working macOS-compatible storage path. No safe target was identified. Never reuse upstream LBAs based on disk names. |
+| GPU / display | Linux describes Adreno 650.2 and a 1800x2880 DSI panel; upstream reports iPadOS Metal via a translation stack on its tablet, with known rendering and stability issues. | macOS-specific acceleration, display handoff, panel compatibility and stability tests on this tablet. A framebuffer or a model test alone is not GPU acceleration. |
+| Touch | Linux enumerates Novatek touch and pen; upstream reports iPadOS finger touch on its tablet. | Matching panel/touch firmware and tested macOS HID integration on this tablet, including recovery from touch failure. Pen operation is unverified. |
+
+Additional isolated host experiments: the upstream UFS `RootWindowRead` test
+passed with ASan/UBSan using GCC after a temporary *test-only* initializer type
+fix (`0ULL` to `uint64_t{0}`) for this host; upstream was restored afterwards.
+The Adreno board parser test passed with upstream host doubles and a temporary
+empty IOKit type-header stub; its test data are **SM8550**, not this SM8250,
+so it does not validate the Pad 6 GPU. The UFS RootLayout test remains blocked
+by missing OpenSSL development headers. These host tests do not access a GPU,
+touch controller or block device. There was no firmware, kernel, or installer
+build or device boot in this session.
