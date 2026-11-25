@@ -179,3 +179,27 @@ so it does not validate the Pad 6 GPU. The UFS RootLayout test remains blocked
 by missing OpenSSL development headers. These host tests do not access a GPU,
 touch controller or block device. There was no firmware, kernel, or installer
 build or device boot in this session.
+
+### First build component: boot image inspector
+
+`scripts/inspect-android-boot.py` is a read-only structural inspector for
+**existing regular files** in Android `boot.img` header versions 0–4. It reports
+header version, page size and the offsets and lengths of present sections;
+it refuses truncated/overlapping sections, unsupported versions, and device
+nodes. For example, on a copied image you already have:
+
+```sh
+python3 scripts/inspect-android-boot.py /path/to/boot.img
+```
+
+It doesn't download, create, unpack, patch, sign or flash an image, read a
+partition, check AVB/signatures, verify architecture or executable contents,
+or prove pipa or macOS compatibility. It does not support `vendor_boot`,
+`init_boot` or sparse images. Android header variants and vendor-specific
+padding should be verified against the relevant format and build tools; a
+pass is not authorization to boot or flash. No real pipa image or physical
+device was tested by this project. To run the synthetic tests:
+
+```sh
+python3 -m unittest discover -s tests -p 'test_inspect_android_boot.py' -v
+```
