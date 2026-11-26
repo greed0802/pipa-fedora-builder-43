@@ -1,0 +1,13 @@
+[Unit]
+Description=Pipa Miracast Sink (draft)
+After=graphical-session.target network.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/pipa-miracast-sink
+ExecStart=/usr/bin/python3 -m pipa_miracast_sink
+Restart=on-failure
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=default.target

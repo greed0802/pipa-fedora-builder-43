@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pipa-miracast-sink"
+version = "0.1.0"
+description = "Draft Miracast sink receiver for Windows+K on Fedora/pipa"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "PyGObject>=3.42",
+]
+
+[project.scripts]
+pipa-miracast-sink = "pipa_miracast_sink.app:main"
+
+[tool.setuptools.packages.find]
+include = ["pipa_miracast_sink*"]
